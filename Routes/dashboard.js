@@ -89,8 +89,7 @@ exports.student = async (req, res) => {
 
             OverAllPerf.push({
                 examId: exam._id,
-                overallpoint:perf.overallpoint,
-                points: perf.obtainpoint
+                points: perf.scores
             });
         }
 

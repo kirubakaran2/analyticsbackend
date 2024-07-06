@@ -5,7 +5,6 @@ const Performance = require("../Schema/performance")
 const Ranking = require("../Schema/ranking")
 const Scoring = require("../Schema/scores")
 const User = require("../Schema/user")
-
 const SuperAdmin = require("../Schema/superadmin")
 const jwt = require("jsonwebtoken")
 const secret = process.env.secret || "SuperK3y";
