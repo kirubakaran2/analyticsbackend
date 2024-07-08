@@ -47,6 +47,8 @@ const PlaygroundQn = require("./Routes/playgroundQn.js")
 const Count = require("./Routes/countAttend.js")
 const toptensuper =require("./Routes/toptensuperadmin.js");
 const toptenadmin = require("./Routes/toptenadmin.js");
+const toptenstud = require("./Routes/Toptenstud.js")
+
 // Middleware for the cross origin resources shares.
 const app = express();
 app.use(cors({
@@ -318,7 +320,7 @@ app.get("/student/exams/:examID/result", auth.verification, scoreRoutes.studentO
 app.get("/superadmin/scoreboard", auth.superAdminVerification, scoreRoutes.superadmin);
 app.get("/student/scoreboard", auth.verification, scoreRoutes.student);
 app.get("/superadmin/scoreboard/toptenScores", auth.superAdminVerification, toptensuper.topTenScoresForCollege);
-app.get("/student/scoreboard/toptenScores", auth.verification, scoreRoutes.topTenScoresForstudent);
+app.get("/student/scoreboard/toptenScores", auth.verification, toptenstud.topTenScoresForstudent);
 app.get("/admin/topten", auth.adminVerification, toptenadmin.topTenScores);
 // /*
 // POST - /contactus - Store the queries in database and view it on future.
