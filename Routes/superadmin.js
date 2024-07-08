@@ -75,13 +75,8 @@ async function departmentName(id) {
 }
 
 async function CollegeName(id) {
-    const college = await College.findOne({_id:id})
-    if(!college) {
-        return null;
-    }
-    else {
-        return college;
-    }
+    const college = await College.findOne({ _id: id });
+    return college ? college.college : null; // Handle null case
 }
 
 async function examStatus(start, end) {
@@ -402,20 +397,28 @@ exports.profile = async(req,res) => {
 }
 
 
-exports.getSA = async(req,res) => {
-    const superadmin = await User.find({});
-    var user = new Array(); 
-    for(const a of superadmin) {
-        user.push({
-            _id: a?._id,
-            college: (await CollegeName(a?.college)).college,
-            name: a?.name,
-            username: a?.username,
-            email: a?.email,
-        })
+exports.getSA = async (req, res) => {
+    try {
+        const superadmins = await User.find({});
+        const users = [];
+
+        for (const a of superadmins) {
+            const collegeName = await CollegeName(a?.college);
+            users.push({
+                _id: a?._id,
+                college: collegeName || "Unknown College", // Handle null case
+                name: a?.name,
+                username: a?.username,
+                email: a?.email,
+            });
+        }
+
+        return res.json({ superadmins: users });
+    } catch (err) {
+        console.error("Error fetching superadmins:", err);
+        return res.status(500).json({ status: "Something went wrong" });
     }
-    return res.json({superadmins:user})
-}
+};
 
 exports.getSAS = async(req,res) => {
     const { superadminID } = req.params;
