@@ -1,28 +1,31 @@
 const Meet = require("../Schema/meeting");
 const User = require("../Schema/superadmin")
 const Student = require("../Schema/user");
-const secret = process.env.secret || "SuperK3y";
+const secret = process.env.secret
 const jwt = require("jsonwebtoken")
 const Department = require("../Schema/department")
 const College = require("../Schema/college")
 
-async function profileID(req) {
-    const token = req.headers.authorization;
-    if (!token) {
-        return null;
-    }
-
+async function profileID(token) {
+    var tok = token.headers.authorization;
+    tok = tok.substring(7)
+    var id;
     try {
-        const tok = token.slice(7);
-        const id = jwt.verify(tok, secret);
-        let user = await User.findOne({ _id: id.id });
-        if (!user) {
-            user = await Student.findOne({ _id: id.id });
-        }
-        return user || null;
-    } catch (err) {
-        console.error("Error verifying token:", err);
-        return null;
+        id = await jwt.verify(tok, secret);
+    }
+    catch(err) {
+        id = null;
+    }
+    const user = await User.findOne({_id:id.id});
+    if(user) {
+        return user;
+    }
+    else {
+	const student = await Student.findOne({_id:id.id});
+	if(student)
+		return student
+	else
+		return null
     }
 }
 
@@ -36,15 +39,20 @@ async function depart(id) {
 }
 
 async function clg(id) {
-	const college = await College.findOne({_id:id});
-	return college.college;
+    const college = await College.findOne({ _id: id });
+    if (college) {
+        return college.college;
+    } else {
+        return null; 
+    }
 }
+
 
 exports.admin = async(req,res) => {
     const meeting = await Meet.find({});
     const meet = new Array();
     for(const a of meeting) {
-	console.log(a)
+	// console.log(a)
 	const department = await depart(a.department);
 	const college = await clg(a.college);
 	meet.push({
