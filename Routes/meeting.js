@@ -1,31 +1,28 @@
 const Meet = require("../Schema/meeting");
 const User = require("../Schema/superadmin")
 const Student = require("../Schema/user");
-const secret = process.env.secret
+const secret = process.env.secret || "SuperK3y";
 const jwt = require("jsonwebtoken")
 const Department = require("../Schema/department")
 const College = require("../Schema/college")
 
-async function profileID(token) {
-    var tok = token.headers.authorization;
-    tok = tok.substring(7)
-    var id;
+async function profileID(req) {
+    const token = req.headers.authorization;
+    if (!token) {
+        return null;
+    }
+
     try {
-        id = await jwt.verify(tok, secret);
-    }
-    catch(err) {
-        id = null;
-    }
-    const user = await User.findOne({_id:id.id});
-    if(user) {
-        return user;
-    }
-    else {
-	const student = await Student.findOne({_id:id.id});
-	if(student)
-		return student
-	else
-		return null
+        const tok = token.slice(7);
+        const id = jwt.verify(tok, secret);
+        let user = await User.findOne({ _id: id.id });
+        if (!user) {
+            user = await Student.findOne({ _id: id.id });
+        }
+        return user || null;
+    } catch (err) {
+        console.error("Error verifying token:", err);
+        return null;
     }
 }
 
