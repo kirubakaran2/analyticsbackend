@@ -10,7 +10,7 @@ const getGraphData = async (studentId) => {
     let point = 0;
     const OverAllPerf = [];
 
-    const addedExamIds = new Set();
+    const addedExamIds = new Set(); 
 
     for (let perf of performance) {
         if (perf.category === 'mcq') {

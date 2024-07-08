@@ -309,10 +309,9 @@ exports.exam = async (req, res) => {
       const Attended = await Performance.find({studentid:userID,examid:exam?._id, section: {$in:sections}})
 	console.log(Attended)
       var status = "unattend";
-    //   if(Attended.length >= 1 && Attended.length !== sections.length)
-	// status = "partial"
-    //   else 
-    if(Attended.length === sections.length) 
+      if(Attended.length >= 1 && Attended.length !== sections.length)
+	status = "partial"
+      else if(Attended.length === sections.length) 
         status = "attend"
       return {
         _id: exam?._id,

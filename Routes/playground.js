@@ -3,21 +3,28 @@ const c = require("./c")
 const java = require("./java");
 const PlaygroundDB = require("../Schema/playground");
 const jwt = require("jsonwebtoken")
-const secret = process.env.secret;
+const secret = process.env.secret || "SuperK3y";
 
-async function userID(authHeader)  {
+async function userID(authHeader) {
     var token;
-    if( authHeader && authHeader.startsWith("Bearer ")) {
+    if (authHeader && authHeader.startsWith("Bearer ")) {
         token = authHeader.substring(7);
+    } else {
+        console.error("Authorization header is missing or not formatted correctly");
+        return null;
     }
-    try{
-        var user = jwt.verify(token,secret);
-        return user.id
-    }
-    catch{
+
+    try {
+        // console.log("Token:", token); 
+        var user = jwt.verify(token, secret);
+        // console.log("User ID:", user.id); 
+        return user.id;
+    } catch (err) {
+        console.error('Token verification error:', err);
         return null;
     }
 }
+
 /*
 Execute the coding question.
 - Identify the user detail with the token, which have the user id.
@@ -73,20 +80,41 @@ exports.playground = async (req,res) => {
 - Create a new playground on their account.
 - Question, input and codes are saved.
 */
-exports.save = async(req,res) => {
-	const { name, question, input, code, language } = req.body;
-	const token = req.headers.authorization;
-	const userid = await userID(token);
-	const pg = new PlaygroundDB({
-		name: name,
-		userid: userid,
-		question: question,
-		input: input,
-		code: code,
-		language: language,
-	});
-	pg.save().then((data) => {return res.json({id:data._id,status:"Saved"})}).catch((err) => {return res.json({status:"Not saved"})});
-}
+exports.save = async (req, res) => {
+    const { name, question, input, code, language, isAdminQuestion, examID, questionID } = req.body;
+    const token = req.headers.authorization;
+
+    if (!token) {
+        return res.status(401).json({ status: "Unauthorized" });
+    }
+
+    const userid = await userID(token);
+
+    if (!userid) {
+        return res.status(401).json({ status: "Invalid User" });
+    }
+
+    const pg = new PlaygroundDB({
+        name,
+        userid,
+        question,
+        input,
+        code,
+        language,
+        isAdminQuestion: isAdminQuestion || false,
+        examID,
+        questionID
+    });
+
+    pg.save()
+        .then((data) => {
+            return res.json({ id: data._id, status: "Saved" });
+        })
+        .catch((err) => {
+            console.error(err);
+            return res.json({ status: "Not saved", error: err.message });
+        });
+};
 
 /*
 - Edit a existing playground on their account.
