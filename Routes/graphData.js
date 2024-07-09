@@ -6,13 +6,14 @@ const getGraphData = async (studentId) => {
     let numberOfMcq = 0;
     let numberOfCod = 0;
     let numberOfBot = 0;
-    let overallpoint = 0;
-    let point = 0;
+    let overallPoints = 0;
+    let points = 0;
     const OverAllPerf = [];
 
     const addedExamIds = new Set(); 
 
     for (let perf of performance) {
+        // Increment counters based on performance category
         if (perf.category === 'mcq') {
             numberOfMcq++;
         } else if (perf.category === 'coding') {
@@ -21,15 +22,18 @@ const getGraphData = async (studentId) => {
             numberOfBot++;
         }
 
-        point += perf.obtainpoint;
+        // Accumulate obtained points
+        points += perf.obtainpoint;
 
+        // Fetch the exam details
         const exam = await Exam.findOne({ _id: perf.examid });
         if (!exam) {
             console.error(`Exam not found for exam ID: ${perf.examid}`);
             continue;
         }
 
-        overallpoint += exam.overallRating;
+        // Accumulate overall rating points from the exam
+        overallPoints += exam.overallRating;
 
         // Check if examId is already added
         if (!addedExamIds.has(exam._id.toString())) {
@@ -42,13 +46,17 @@ const getGraphData = async (studentId) => {
         }
     }
 
+    const totalCount = addedExamIds.size;
+
+    // Return calculated metrics
     return {
         numberOfMcq,
         numberOfCod,
         numberOfBot,
-        overallpoint,
-        point,
-        OverAllPerf
+        overallPoints,
+        points,
+        OverAllPerf,
+        totalCount
     };
 };
 

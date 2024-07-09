@@ -13,6 +13,7 @@ const Performance = require("../Schema/performance")
 const Rank = require("../Schema/ranking")
 const ScoreBoard = require("../Schema/scoreboard")
 const Scoring = require("../Schema/scores")
+const { getGraphData } = require('../Routes/graphData')
 const Event = require("../Schema/techevent")
 
 async function profileID(token) {
@@ -45,6 +46,7 @@ async function profileID(token) {
 }
 
 
+
 exports.student = async (req, res) => {
     try {
         const person = await profileID(req);
@@ -59,39 +61,8 @@ exports.student = async (req, res) => {
         // Destructure the college and department from the fetched student
         const { college, department } = student;
 
-        // Calculate the performance metrics
-        const performance = await Performance.find({ studentid: student._id });
-        let numberOfMcq = 0;
-        let numberOfCod = 0;
-        let numberOfBot = 0;
-        let overallpoint = 0;
-        let point = 0;
-        const OverAllPerf = [];
-
-        for (let perf of performance) {
-            if (perf.category === 'mcq') {
-                numberOfMcq++;
-            } else if (perf.category === 'coding') {
-                numberOfCod++;
-            } else if (perf.category === 'both') {
-                numberOfBot++;
-            }
-
-            point += perf.obtainpoint;
-
-            const exam = await Exam.findOne({ _id: perf.examid });
-            if (!exam) {
-                console.error(`Exam not found for exam ID: ${perf.examid}`);
-                continue;
-            }
-
-            overallpoint += exam.overallRating;
-
-            OverAllPerf.push({
-                examId: exam._id,
-                points: perf.scores
-            });
-        }
+        // Get graph data
+        const graphData = await getGraphData(student._id);
 
         // Fetch the scoreboard for the particular student
         const scoreboard = await ScoreBoard.find({ studentid: student._id });
@@ -107,12 +78,13 @@ exports.student = async (req, res) => {
             year: department ? department.year : "Not found",
             semester: department ? department.semester : "Not found",
             section: department ? department.section : "Not found",
-            mcq: numberOfMcq,
-            coding: numberOfCod,
-            both: numberOfBot,
-            overallpoint: overallpoint,
-            point: point,
-            graph: OverAllPerf,
+            mcq: graphData.numberOfMcq,
+            coding: graphData.numberOfCod,
+            both: graphData.numberOfBot,
+            overallpoint: graphData.overallPoints,
+            point: graphData.points,
+            graph: graphData.OverAllPerf,
+            totalCount: graphData.totalCount,
             scoreboard: scoreboard,
             ranking: ranking
         });
@@ -121,6 +93,8 @@ exports.student = async (req, res) => {
         return res.status(500).json({ error: 'Internal server error' });
     }
 };
+
+
 
 exports.studentDetail = async (req, res) => {
     const { userID } = req.params;

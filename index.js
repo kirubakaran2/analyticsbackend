@@ -48,6 +48,7 @@ const Count = require("./Routes/countAttend.js")
 const toptensuper =require("./Routes/toptensuperadmin.js");
 const toptenadmin = require("./Routes/toptenadmin.js");
 const toptenstud = require("./Routes/Toptenstud.js")
+const playgroundsuperadmin = require("./Routes/playsuperadmin.js")
 
 // Middleware for the cross origin resources shares.
 const app = express();
@@ -297,9 +298,6 @@ app.post("/student/exams/:examID/:sectionID/evaluate", auth.verification, Studen
 app.post("/student/exams/:examID/:sectionID/submit", auth.verification, Student.examSubmit);
 
 app.get("/student/exams/:examID/:sectionID/answer", auth.verification, Student.examAnswer);
-
-
-
 /*
 
 Student Panel of Event and Scoreboard
@@ -359,6 +357,7 @@ app.get("/superadmin/training", auth.superAdminVerification, PlaygroundQn.supera
 app.get("/student/training", auth.verification, PlaygroundQn.student);
 app.get("/student/training/:playID", auth.verification, PlaygroundQn.details);
 app.post("/admin/training/new", auth.adminVerification, PlaygroundQn.new);
+app.post("/superadmin/training/new", auth.superAdminVerification, playgroundsuperadmin.newPlayground);
 app.post("/student/training/:playgroundID/:sectionID/evaluate", auth.verification, PlaygroundQn.examEval);
 app.post("/student/training/:playgroundID/:sectionID/submit", auth.verification, PlaygroundQn.examSubmit);
 app.get("/student/training/:playgroundID/:sectionID/result", auth.verification, PlaygroundQn.getResult);
