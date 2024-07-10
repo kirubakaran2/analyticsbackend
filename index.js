@@ -353,6 +353,8 @@ app.post("/student/playground/run", auth.verification, Play.playground);
 // app.get("/student/getAssignedQuestions", auth.verification, playqn.getAssignedQuestions);
 
 app.get("/admin/training", auth.adminVerification, PlaygroundQn.admin);
+app.delete("/admin/playground/:id", auth.adminVerification, PlaygroundQn.delete);
+app.delete("/superadmin/playground/:id", auth.superAdminVerification, PlaygroundQn.delete);
 app.get("/superadmin/training", auth.superAdminVerification, PlaygroundQn.superadmin);
 app.get("/student/training", auth.verification, PlaygroundQn.student);
 app.get("/student/training/:playID", auth.verification, PlaygroundQn.details);

@@ -407,75 +407,71 @@ exports.studentOf = async (req, res) => {
 
   const exam = await Exam.findOne({ _id: examID });
   if (!exam) {
-    return res.status(404).json({ status: "Exam not found" });
+      return res.status(404).json({ status: "Exam not found" });
   }
 
   var user = await User.findOne(
-    { _id: userID },
-    { password: 0, role: 0, college: 0, department: 0 }
+      { _id: userID },
+      { password: 0, role: 0, college: 0, department: 0 }
   );
 
   if (userID === undefined) {
-    user = await userprofileID(req);
+      user = await userprofileID(req);
   }
 
   if (!user) {
-    return res.status(404).json({ status: "User not found" });
+      return res.status(404).json({ status: "User not found" });
   }
 
   var sections = exam?.sections;
   var result = [];
 
   for (let section of sections) {
-    let sectioninfo = await Section.findOne({ _id: section });
-    let score = await Scoring.aggregate([
-      {
-        $match: {
-          studentid: user._id,
-          sectionid: section,
-        },
-      },
-      {
-        $lookup: {
-          from: "sections",
-          localField: "sectionid",
-          foreignField: "_id",
-          as: "section",
-        },
-      },
-      {
-        $unwind: "$section",
-      },
-      {
-        $project: {
-          name: "$section.name",
-          category: "$section.category",
-          show: { $literal: true }, 
-          points: 1,
-          overPoint: 1,
-          timetaken: 1,
-          performance: 1,
-        },
-      },
-    ]);
+      let sectioninfo = await Section.findOne({ _id: section });
+      let score = await Scoring.aggregate([
+          {
+              $match: {
+                  studentid: user._id,
+                  sectionid: section,
+              },
+          },
+          {
+              $lookup: {
+                  from: "sections",
+                  localField: "sectionid",
+                  foreignField: "_id",
+                  as: "section",
+              },
+          },
+          {
+              $unwind: "$section",
+          },
+          {
+              $project: {
+                  name: "$section.name",
+                  category: "$section.category",
+                  show: "$section.show", // Get the actual 'show' value from the database
+                  points: 1,
+                  overPoint: 1,
+                  timetaken: 1,
+                  performance: 1,
+              },
+          },
+      ]);
 
-    if (score.length >= 1) {
-      score = score[0];
-    }
+      if (score.length >= 1) {
+          score = score[0];
+      }
 
-    // Ensure show is always true
-    sectioninfo.show = true;
-
-    if (score.length === 0) {
-      result.push({ section: sectioninfo, score: "Not attend yet." });
-    } else if (sectioninfo.category === 'mcq') {
-      let answer = await Section.findOne({ _id: section }, { questions: 1 });
-      result.push({ section: sectioninfo, score: { ...score, show: true }, answer: answer });
-    } else {
-      result.push({ section: sectioninfo, score: { ...score, show: true } });
-    }
+      if (score.length === 0) {
+          result.push({ section: sectioninfo, score: "Not attend yet." });
+      } else if (sectioninfo.category === 'mcq') {
+          let answer = await Section.findOne({ _id: section }, { questions: 1 });
+          result.push({ section: sectioninfo, score: score, answer: answer });
+      } else {
+          result.push({ section: sectioninfo, score: score });
+      }
   }
 
   return res.status(200).json({ user: user, scores: result });
 };
-

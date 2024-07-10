@@ -541,3 +541,9 @@ exports.getResult = async(req,res) => {
         let sec = await Scoring.findOne({sectionid:sectionID,studentid:userID,category:"coding"})
         return res.json({result:sec});
 }
+exports.delete = async(req,res) => {
+	const {id} = req.params;
+	await Playground.findOneAndDelete({_id:id})
+	return res.json({status:"Deleted"});
+
+}
