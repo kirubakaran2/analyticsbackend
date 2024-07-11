@@ -165,7 +165,8 @@ POST - /event/add - Add a new event.
 app.get("/admin/event", auth.adminVerification, TechEvent.evt);
 app.get("/admin/event/:eventID", auth.adminVerification, TechEvent.event); // Event details
 app.post("/admin/event/add", auth.adminVerification, TechEvent.newevent); // Event - Add Page.
-
+app.post("/superadmin/event/add", auth.superAdminVerification, TechEvent.newevent);
+app.get("/superadmin/event/:eventID", auth.superAdminVerification, TechEvent.event);
 
 /*
 
@@ -269,7 +270,7 @@ GET - /events - Listout the events of their college.
 GET - /dashboard - Return all the details required for the dashboard panel.
 
 */
-app.get("/superadmin/event", auth.superAdminVerification, SuperAdmin.event);
+app.get("/superadmin/event", auth.superAdminVerification, TechEvent.evt);
 app.get("/superadmin/dashboard", auth.superAdminVerification, SuperAdmin.profile);
 
 

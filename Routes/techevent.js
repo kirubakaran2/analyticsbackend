@@ -28,12 +28,12 @@ exports.event = async(req,res) => {
 - Create a new events allocated for the department of their students.
 */
 exports.newevent = async(req,res) => {
-    const {username,title, college, department, year, semester, section, link, imageData } = req.body;
+    const {username,title, college, department, year, semester, section, link } = req.body;
     var eventID = new Date().getTime();
-    const imageBuffer = Buffer.from(imageData, 'base64');
-    const uniqueFilename = `${Date.now()}_${Math.floor(Math.random() * 1000)}.png`;
-    const imagePath = path.join(__dirname, '..\\uploads', uniqueFilename);
-    fs.writeFileSync(imagePath, imageBuffer);
+    // const imageBuffer = Buffer.from(imageData, 'base64');
+    // const uniqueFilename = `${Date.now()}_${Math.floor(Math.random() * 1000)}.png`;
+    // const imagePath = path.join(__dirname, '..\\uploads', uniqueFilename);
+    // fs.writeFileSync(imagePath, imageBuffer);
     const event = await Techevent({
         title:title,
         username: username,
@@ -43,7 +43,7 @@ exports.newevent = async(req,res) => {
         semester: semester,
         section: section,
         eventlink: link,
-        image: "uploads/"+uniqueFilename,
+        // image: "uploads/"+uniqueFilename,
     });
 
     event.save()
