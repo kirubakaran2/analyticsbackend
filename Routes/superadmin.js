@@ -76,7 +76,7 @@ async function departmentName(id) {
 
 async function CollegeName(id) {
     const college = await College.findOne({ _id: id });
-    return college ? college.college : null; // Handle null case
+    return college ? college.college : null;
 }
 
 async function examStatus(start, end) {

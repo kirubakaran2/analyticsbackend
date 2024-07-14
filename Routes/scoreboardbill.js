@@ -7,6 +7,7 @@ const Scoring = require("../Schema/scores")
 const User = require("../Schema/user")
 const Exam = require("../Schema/events")
 const Section = require("../Schema/sections")
+const Timer = require("../Schema/examtimer.js");
 
 const SuperAdmin = require("../Schema/superadmin")
 const jwt = require("jsonwebtoken")
@@ -401,77 +402,137 @@ exports.student = async(req,res) => {
         return res.status(500).json({status:"Something went wrong"})
     }
 }
+function getTimeStatus(starttime, endtime) {
+  const currentTime = new Date();
+  const startTime = new Date(starttime);
+  const endTime = new Date(endtime);
+
+  if (currentTime < startTime) {
+    return "upcoming";
+  } else if (currentTime >= startTime && currentTime <= endTime) {
+    return "ongoing";
+  } else {
+    return "ended";
+  }
+}
+
+function formatDateTime(inputDateTime) {
+  return inputDateTime;
+}
+
+function formatDateWithMonthAndTime(inputDateTime) {
+  const dateTime = new Date(inputDateTime);
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June", "July",
+    "August", "September", "October", "November", "December"
+  ];
+  const formattedDate = `${monthNames[dateTime.getMonth()]} ${dateTime.getDate()}, ${dateTime.getFullYear()} ${dateTime.toLocaleTimeString()}`;
+
+  return formattedDate;
+}
 
 exports.studentOf = async (req, res) => {
-  var { userID, examID } = req.params;
+    var { userID, examID } = req.params;
 
-  const exam = await Exam.findOne({ _id: examID });
-  if (!exam) {
-      return res.status(404).json({ status: "Exam not found" });
-  }
+    const exam = await Exam.findOne({ _id: examID });
+    if (!exam) {
+        return res.status(404).json({ status: "Exam not found" });
+    }
+  
+    var user = await User.findOne(
+        { _id: userID },
+        { password: 0, role: 0, college: 0, department: 0 }
+    );
+  
+    if (userID === undefined) {
+        user = await userprofileID(req);
+    }
+  
+    if (!user) {
+        return res.status(404).json({ status: "User not found" });
+    }
+  
+    var sections = exam?.sections;
+    var result = [];
 
-  var user = await User.findOne(
-      { _id: userID },
-      { password: 0, role: 0, college: 0, department: 0 }
-  );
+    for (let section of sections) {
+        let sectioninfo = await Section.findOne({ _id: section });
+        let score = await Scoring.aggregate([
+            {
+                $match: {
+                    studentid: user._id,
+                    sectionid: section,
+                },
+            },
+            {
+                $lookup: {
+                    from: "sections",
+                    localField: "sectionid",
+                    foreignField: "_id",
+                    as: "section",
+                },
+            },
+            {
+                $unwind: "$section",
+            },
+            {
+                $project: {
+                    name: "$section.name",
+                    category: "$section.category",
+                    show: "$section.show",
+                    points: 1,
+                    overPoint: 1,
+                    timetaken: 1,
+                    performance: 1,
+                },
+            },
+        ]);
 
-  if (userID === undefined) {
-      user = await userprofileID(req);
-  }
+        if (score.length >= 1) {
+            score = score[0];
+        }
 
-  if (!user) {
-      return res.status(404).json({ status: "User not found" });
-  }
+        if (score.length === 0) {
+            result.push({ section: sectioninfo, score: "Not attend yet." });
+        } else if (sectioninfo.category === 'mcq') {
+            let answer = await Section.findOne({ _id: section }, { questions: 1 });
+            result.push({ section: sectioninfo, score: score, answer: answer });
+        } else {
+            result.push({ section: sectioninfo, score: score });
+        }
+    }
 
-  var sections = exam?.sections;
-  var result = [];
+    // Include examDetail information
+    const question = await Promise.all(
+        exam.sections.map(async (section) => {
+            const sec = await Section.findOne({ _id: section }, { 'questions.answer': 0 });
+            var timerExist = await Timer.findOne({ examid: examID, sectionid: sec?._id, studentid: userID });
+            if (timerExist) {
+                sec.timeLeft = ((new Date().getTime() - new Date(timerExist?.startTime).getTime()) / 60000);
+                return sec;
+            }
+            return sec;
+        })
+    );
 
-  for (let section of sections) {
-      let sectioninfo = await Section.findOne({ _id: section });
-      let score = await Scoring.aggregate([
-          {
-              $match: {
-                  studentid: user._id,
-                  sectionid: section,
-              },
-          },
-          {
-              $lookup: {
-                  from: "sections",
-                  localField: "sectionid",
-                  foreignField: "_id",
-                  as: "section",
-              },
-          },
-          {
-              $unwind: "$section",
-          },
-          {
-              $project: {
-                  name: "$section.name",
-                  category: "$section.category",
-                  show: "$section.show", // Get the actual 'show' value from the database
-                  points: 1,
-                  overPoint: 1,
-                  timetaken: 1,
-                  performance: 1,
-              },
-          },
-      ]);
+    const college = await College.findOne({ _id: exam?.college });
+    const department = await Department.findOne({ _id: exam?.department });
 
-      if (score.length >= 1) {
-          score = score[0];
-      }
+    const examDetail = {
+        title: exam.title,
+        college: college.college,
+        department: department?.department,
+        year: department?.year,
+        semester: department?.semester,
+        section: department?.section,
+        date: formatDateWithMonthAndTime(exam.date).split(',')[0],
+        start: formatDateTime(exam?.start),
+        end: formatDateTime(exam?.end),
+        status: getTimeStatus(exam?.start, exam?.end),
+        category: exam?.exam,
+        sections: question,
+        update: "Remaining timing will be updated soon"
+    };
 
-      if (score.length === 0) {
-          result.push({ section: sectioninfo, score: "Not attend yet." });
-      } else if (sectioninfo.category === 'mcq') {
-          let answer = await Section.findOne({ _id: section }, { questions: 1 });
-          result.push({ section: sectioninfo, score: score, answer: answer });
-      } else {
-          result.push({ section: sectioninfo, score: score });
-      }
-  }
-
-  return res.status(200).json({ user: user, scores: result });
+    return res.status(200).json({ user: user, scores: result, examDetail: examDetail });
 };

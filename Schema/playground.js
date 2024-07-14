@@ -8,8 +8,6 @@ const schema = {
     code: { type: String, required: true },
     language: { type: String, required: true },
     isAdminQuestion: { type: Boolean, default: false },
-    examID: { type: String, required: true },
-    questionID: { type: String, required: true }
 };
 
 const Playground = mongoose.model("playground", schema);

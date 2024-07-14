@@ -102,8 +102,6 @@ exports.save = async (req, res) => {
         code,
         language,
         isAdminQuestion: isAdminQuestion || false,
-        examID,
-        questionID
     });
 
     pg.save()
