@@ -48,7 +48,8 @@ const Count = require("./Routes/countAttend.js")
 const toptensuper =require("./Routes/toptensuperadmin.js");
 const toptenadmin = require("./Routes/toptenadmin.js");
 const toptenstud = require("./Routes/Toptenstud.js")
-const playgroundsuperadmin = require("./Routes/playsuperadmin.js")
+const playgroundsuperadmin = require("./Routes/playsuperadmin.js");
+const examid  = require("./Routes/examid.js");
 
 // Middleware for the cross origin resources shares.
 const app = express();
@@ -314,7 +315,9 @@ app.get("/admin/scoreboard", auth.adminVerification, scoreRoutes.scores);
 app.get("/admin/scoreboard/:userID/:examID", auth.adminVerification, scoreRoutes.studentOf);
 app.get("/superadmin/scoreboard/:userID/:examID", auth.superAdminVerification, scoreRoutes.studentOf);
 app.get("/student/scoreboard/:userID/:examID", auth.verification, scoreRoutes.studentOf);
-
+app.get("/scoreboard/:examId",auth.verification,examid.examid);
+app.get("/scoreboard/:examId",auth.adminVerification,examid.examid);
+app.get("/scoreboard/:examId",auth.superAdminVerification,examid.examid);
 app.get("/student/exams/:examID/result", auth.verification, scoreRoutes.studentOf);
 app.get("/superadmin/scoreboard", auth.superAdminVerification, scoreRoutes.superadmin);
 app.get("/student/scoreboard", auth.verification, scoreRoutes.student);
