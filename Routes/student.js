@@ -306,13 +306,11 @@ exports.exam = async (req, res) => {
       const date = formatDateWithMonthAndTime(exam.date).split(',');
       const startTime = formatDateTime(start);
       const endTime = formatDateTime(end);
-      const Attended = await Performance.find({studentid:userID,examid:exam?._id, section: {$in:sections}})
+      const Attended = await Timer.find({studentid:userID,examid:exam?._id?.toString()})
 	console.log(Attended)
       var status = "unattend";
-      if(Attended.length >= 1 && Attended.length !== sections.length)
-	status = "partial"
-      else if(Attended.length === sections.length) 
-        status = "attend"
+      if(Attended.length >=1)
+	    status = "attend"
       return {
         _id: exam?._id,
         title: exam?.title,
