@@ -138,18 +138,10 @@ exports.login = async (req, res) => {
     let token;
 
     try {
-        // Try to find the user in Admin collection
-        let user = await Admin.findOne({ username: username });
-
-        if (!user) {
-            // Try to find the user in SuperAdmin collection if not found in Admin
-            user = await SuperAdmin.findOne({ username: username });
-        }
-
-        if (!user) {
-            // Try to find the user in User collection if not found in SuperAdmin
-            user = await User.findOne({ username: username });
-        }
+        // Try to find the user in Admin, SuperAdmin, or User collection
+        let user = await Admin.findOne({ username: username }) || 
+                    await SuperAdmin.findOne({ username: username }) || 
+                    await User.findOne({ username: username });
 
         if (!user) {
             return res.status(301).json({ response: "Invalid Credentials" });
@@ -161,7 +153,7 @@ exports.login = async (req, res) => {
             return res.status(301).json({ response: "Incorrect Password" });
         }
 
-        // Create the JWT token with the user's role
+        // Create the JWT token with the user's role and session expiration of 72 hours
         token = jwt.sign({
             id: user._id,
             username: user.username,
@@ -171,23 +163,41 @@ exports.login = async (req, res) => {
             college: user.college
         }, secret, { expiresIn: '72hr' });
 
-        // Check user activity
-        const activity = await Activity.findOne({ user_id: user._id });
-        if (!activity) {
+        // Check if there's an active session for the user
+        const currentSession = await Activity.findOne({ user_id: user._id });
+
+        if (!currentSession) {
+            // If no active session exists, create a new one
             const newActivity = new Activity({
                 user_id: user._id,
                 ipaddress: req.ip,
                 userAgent: req.get("user-agent"),
                 date: new Date().getTime(),
-                expiryAt: new Date(Date.now() + 4 * 60 * 60 * 1000),
+                expiryAt: new Date(Date.now() + 4 * 60 * 60 * 1000), // 4-hour expiry
             });
             await newActivity.save();
             return res.json({ token: token });
-        } else if (activity.ipaddress !== req.ip) {
-            return res.status(401).json({ response: "Already logged in from a different browser or place. Logout there to login here." });
         }
 
-        return res.json({ token: token });
+        // If the user is already logged in from a different IP or device, expire the old session
+        if (currentSession.ipaddress !== req.ip || currentSession.userAgent !== req.get("user-agent")) {
+            // Invalidate the previous session
+            await Activity.deleteMany({ user_id: user._id });
+
+            // Create a new session for the current login
+            const newActivity = new Activity({
+                user_id: user._id,
+                ipaddress: req.ip,
+                userAgent: req.get("user-agent"),
+                date: new Date().getTime(),
+                expiryAt: new Date(Date.now() + 4 * 60 * 60 * 1000), // 4-hour expiry
+            });
+            await newActivity.save();
+            return res.json({ token: token, message: "Old session expired. Logged in successfully." });
+        }
+
+        // If the same session is active, proceed with login
+        return res.json({ token: token, message: "Already logged in on this device." });
 
     } catch (error) {
         console.error("Error logging in:", error);
@@ -207,7 +217,7 @@ Register Routes.
 - Exception if request body of role is undefined, it create a student user.
 */
 exports.register = async (req,res) => {
-    var { name, username,register, password, email, rollno, role} = req.body;
+    var { name, username,register, password, email, rollno, role, batch} = req.body;
     const {college,department} = req.params;
     const encPassword = await bcrypt.hash(password, 5);
     var user;
@@ -225,6 +235,7 @@ exports.register = async (req,res) => {
 	        register: register,
             college: college,
             role: role,
+            batch: batch,
         });
     }
     else if(role === "superadmin") {
@@ -254,6 +265,7 @@ exports.register = async (req,res) => {
             department: department,
             college: college,
             role: "student",
+            batch:"batch"
         });
     }
     user.save()
@@ -269,7 +281,7 @@ exports.registerUpload = async (req,res) => {
    var exist = new Array();
    var newReg = new Array();
    for(const a of users) {
-        var { name, username, password, email, rollno, role} = a;
+        var { name, username, password, email, rollno, role,batch} = a;
         var {college,department} = req.params;
         if(!college) {
             const sa = await profileID(req);
@@ -296,6 +308,7 @@ exports.registerUpload = async (req,res) => {
                 department: department,
                 college: college,
                 role: role,
+                batch:batch
             });
             console.log(user)
         }
@@ -342,25 +355,42 @@ exports.registerUpload = async (req,res) => {
 
 
 
-exports.logout = async(req,res) => {
+exports.logout = async (req, res) => {
     const authHeader = req.headers.authorization;
-    var token;
-    if( authHeader && authHeader.startsWith("Bearer ")) {
+    let token;
+    
+    if (authHeader && authHeader.startsWith("Bearer ")) {
         token = authHeader.substring(7);
-    }
-
-    else {
+    } else {
         return res.status(401).send("Unauthorized Access");
     }
 
     try {
-        var decode = jwt.verify(token,secret);
-        var user_id = decode.id
-	await Activity.findOneAndDelete({user_id:user_id}).then(()=> {return res.json({status:"Log out"})}).catch(() => {return res.json({status:"Something went wrong"})})
-    }
-    catch {
+        const decoded = jwt.verify(token, secret);
+        const user_id = decoded.id;
+
+        // Find the current session to remove
+        await Activity.findOneAndDelete({ user_id: user_id, token: token })
+            .then(() => {
+                return res.json({ status: "Logged out successfully" });
+            })
+            .catch(() => {
+                return res.json({ status: "Something went wrong" });
+            });
+        
+        // Invalidate previous sessions
+        // Optionally, remove all older sessions except the current one
+        await Activity.deleteMany({ user_id: user_id, token: { $ne: token } })
+            .then(() => {
+                console.log("Expired older sessions");
+            })
+            .catch((err) => {
+                console.error("Error expiring sessions: ", err);
+            });
+        
+    } catch (err) {
         return res.status(401).send("Unauthorized Access");
     }
-}
+};
 
 

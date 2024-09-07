@@ -50,6 +50,11 @@ const toptenadmin = require("./Routes/toptenadmin.js");
 const toptenstud = require("./Routes/Toptenstud.js")
 const playgroundsuperadmin = require("./Routes/playsuperadmin.js");
 const examid  = require("./Routes/examid.js");
+const examcount =require("./Routes/examcount.js");
+const examsectioncount =require("./Routes/examsectioncount.js");
+const batch =require("./Routes/batch.js");
+const count=require("./Routes/count.js");
+const superadminext=require("./Routes/superadminext.js")
 
 // Middleware for the cross origin resources shares.
 const app = express();
@@ -426,6 +431,16 @@ app.post('/superadmin/settings/:userID/security', auth.superAdminVerification, S
 app.get('/admin/settings/:userID', auth.adminVerification, AdminSettings.user);
 app.post('/admin/settings/:userID/personal', auth.adminVerification, AdminSettings.personal)
 app.post('/admin/settings/:userID/security', auth.adminVerification, AdminSettings.security)
+
+//newapis
+app.get("/colleges",auth.verification,College.college)
+// app.get("/colleges/:college",auth.verification,examcount.departmentcount);
+app.get("/colleges/:collegeId",auth.verification,examcount.departmentStats);
+app.get("/admin/exams/:examID/statistics", auth.adminVerification, Count.admin);
+app.get("/scoreboards/:examId",auth.verification,examsectioncount.examsid);
+app.get("/count",auth.verification,count.count);
+app.get('/batch/:collegeid/:batch', auth.verification, batch.batch);
+// app.get('/superadminext',auth.verification, superadminext.superadminext);
 
 
 /* Image Access API*/

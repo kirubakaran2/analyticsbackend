@@ -11,6 +11,7 @@ const userschema = mongoose.Schema({
         college: {type: Object},
         department: {type: Object},
         email: {type: String},
+        batch: { type: String } 
     })
 
 

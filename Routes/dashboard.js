@@ -279,11 +279,37 @@ exports.admin = async (req, res) => {
 
 
 
-exports.superadmin = async(req,res) => {
-    const user = await profileID(req);
+exports.superadmin = async (req, res) => {
+    try {
+        const user = await profileID(req);
 
-    const exam =  await Exam.find({end: {$gt: new Date().getTime()}, college:user.college}).limit(5);
-    const event = await Event.find({}).limit(5);
-    const score = await ScoreBoard.find({college:user.college}).sort({scores:-1}).limit(5)
-    return res.json({exam:exam,event:event,scoreboard:score});
-}
+        // Print user college for debugging
+        // console.log('User College:', user.college);
+        const exams = await Exam.find({ college: user.college }).limit(5);
+        const events = await Event.find({}).limit(5);
+        const scores = await ScoreBoard.find({ college: user.college }).sort({ scores: -1 }).limit(5);
+        // console.log('Fetched Exams:', exams);
+        const examCount = await Exam.countDocuments({ college: user.college });
+        const eventCount = await Event.countDocuments({});
+        const studentCount = await User.countDocuments({ college: user.college, role: 'student' });
+        const totalScoreResult = await ScoreBoard.aggregate([
+            { $match: { college: user.college } },
+            { $group: { _id: null, totalScore: { $sum: "$scores" } } }
+        ]);
+
+        const totalScore = totalScoreResult.length ? totalScoreResult[0].totalScore : 0; // Handle empty result
+
+        return res.json({
+            exams,
+            events,
+            scores,
+            examCount,
+            eventCount,
+            studentCount,
+            totalScore
+        });
+    } catch (err) {
+        console.error('Error fetching data:', err);
+        return res.status(500).json({ message: 'Something went wrong', error: err.message });
+    }
+};
