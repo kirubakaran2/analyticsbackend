@@ -55,7 +55,7 @@ const examsectioncount =require("./Routes/examsectioncount.js");
 const batch =require("./Routes/batch.js");
 const count=require("./Routes/count.js");
 const superadminext=require("./Routes/superadminext.js")
-
+const sectionstotal=require("./Routes/sectionstotal.js")
 // Middleware for the cross origin resources shares.
 const app = express();
 app.use(cors({
@@ -433,14 +433,20 @@ app.post('/admin/settings/:userID/personal', auth.adminVerification, AdminSettin
 app.post('/admin/settings/:userID/security', auth.adminVerification, AdminSettings.security)
 
 //newapis
-app.get("/colleges",auth.verification,College.college)
+app.get("/colleges",auth.superAdminVerification,College.college)
+app.get("/colleges",auth.adminVerification,College.college)
 // app.get("/colleges/:college",auth.verification,examcount.departmentcount);
-app.get("/colleges/:collegeId",auth.verification,examcount.departmentStats);
+app.get("/colleges/:collegeId",auth.adminVerification,examcount.departmentStats);
+app.get("/colleges/:collegeId",auth.superAdminVerification,examcount.departmentStats);
 app.get("/admin/exams/:examID/statistics", auth.adminVerification, Count.admin);
-app.get("/scoreboards/:examId",auth.verification,examsectioncount.examsid);
-app.get("/count",auth.verification,count.count);
+app.get("/admin/exams/:examID/statistics", auth.superAdminVerification, Count.admin);
+app.get("/scoreboards/:examId",auth.adminVerification,examsectioncount.examsid);
+app.get("/scoreboards/:examId",auth.superAdminVerification,examsectioncount.examsid);
+app.get("/count",auth.adminVerification,count.count);
+app.get("/counts",auth.superAdminVerification,count.supercount);
 app.get('/batch/:collegeid/:batch', auth.verification, batch.batch);
 // app.get('/superadminext',auth.verification, superadminext.superadminext);
+app.get('/scoreboard/sectionstotal/:examID', auth.verification, sectionstotal.sectionstotal);
 
 
 /* Image Access API*/
