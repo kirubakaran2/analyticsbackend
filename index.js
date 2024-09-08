@@ -449,6 +449,7 @@ app.get('/batch/:collegeid/:batch', auth.verification, batch.batch);
 app.get('/scoreboard/sectionstotal/:examID', auth.verification, sectionstotal.sectionstotal);
 app.get('/scoreboard/sectotal/:examID', auth.verification, sectionstotal.sectotal);
 
+//test
 
 /* Image Access API*/
 app.get('/uploads/:filename', (req, res) => {
