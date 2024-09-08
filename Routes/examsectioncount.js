@@ -84,12 +84,7 @@ exports.examsid = async (req, res) => {
                     as: "sectionDetails",
                 },
             },
-            {
-                $addFields: {
-                    "exams.totalPoints": { $sum: "$exams.points" },
-                    "exams.totalObtainedPoints": { $sum: "$exams.obtainpoint" },
-                },
-            },
+        
             {
                 $group: {
                     _id: "$_id",
@@ -102,8 +97,6 @@ exports.examsid = async (req, res) => {
                     year: { $first: "$department.year" },
                     semester: { $first: "$department.semester" },
                     exams: { $first: "$exams" },
-                    totalPoints: { $sum: "$exams.totalPoints" },
-                    totalObtainedPoints: { $sum: "$exams.totalObtainedPoints" },
                     sectionDetails: { $first: "$sectionDetails" }
                 },
             },

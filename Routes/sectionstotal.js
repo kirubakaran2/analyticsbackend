@@ -133,3 +133,42 @@ exports.sectionstotal = async (req, res) => {
         sections: aggregatedSectionScores
     });
 };
+exports.sectotal = async (req, res) => {
+    const { examID } = req.params;
+
+    // Fetch the exam details
+    const exam = await Exam.findOne({ _id: examID });
+    if (!exam) {
+        return res.json({ status: "Exam not found" });
+    }
+
+    const sections = exam.sections;
+
+    // Initialize section scores
+    let sectionScores = {};
+
+    // Fetch scores for the given sections
+    const scores = await Scoring.find({ sectionid: { $in: sections } });
+
+    scores.forEach(score => {
+        const sectionId = score.sectionid.toString();
+        if (!sectionScores[sectionId]) {
+            sectionScores[sectionId] = {
+                sectionid: sectionId,
+                sectionname: score.category,  // Assuming 'category' refers to section name
+                totalpoints: 0,
+                totaloverpoints: 0
+            };
+        }
+        sectionScores[sectionId].totalpoints += score.points;
+        sectionScores[sectionId].totaloverpoints += score.overPoint;
+    });
+
+    // Convert sectionScores to an array
+    const aggregatedSectionScores = Object.values(sectionScores);
+
+    // Return the aggregated section scores
+    return res.json({
+        sections: aggregatedSectionScores
+    });
+};
