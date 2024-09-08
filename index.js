@@ -447,6 +447,7 @@ app.get("/counts",auth.superAdminVerification,count.supercount);
 app.get('/batch/:collegeid/:batch', auth.verification, batch.batch);
 // app.get('/superadminext',auth.verification, superadminext.superadminext);
 app.get('/scoreboard/sectionstotal/:examID', auth.verification, sectionstotal.sectionstotal);
+app.get('/scoreboard/sectotal/:examID', auth.verification, sectionstotal.sectotal);
 
 
 /* Image Access API*/
