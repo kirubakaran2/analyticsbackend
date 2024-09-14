@@ -439,7 +439,7 @@ app.get("/colleges",auth.adminVerification,College.college)
 app.get("/colleges/:collegeId",auth.adminVerification,examcount.departmentStats);
 app.get("/colleges/:collegeId",auth.superAdminVerification,examcount.departmentStats);
 app.get("/admin/exams/:examID/statistics", auth.adminVerification, Count.admin);
-app.get("/admin/exams/:examID/statistics", auth.superAdminVerification, Count.admin);
+app.get("/superadmin/exams/:examID/statistics", auth.superAdminVerification, Count.superadmin);
 app.get("/scoreboards/:examId",auth.adminVerification,examsectioncount.examsid);
 app.get("/scoreboards/:examId",auth.superAdminVerification,examsectioncount.examsid);
 app.get("/count",auth.adminVerification,count.count);
@@ -449,7 +449,6 @@ app.get('/batch/:collegeid/:batch', auth.verification, batch.batch);
 app.get('/scoreboard/sectionstotal/:examID', auth.verification, sectionstotal.sectionstotal);
 app.get('/scoreboard/sectotal/:examID', auth.verification, sectionstotal.sectotal);
 
-//test
 
 /* Image Access API*/
 app.get('/uploads/:filename', (req, res) => {
