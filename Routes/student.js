@@ -290,43 +290,89 @@ exports.profile = async(req,res) => {
 - Listout the exams allocated for the specific department of the students.
 - Both mcq and coding exams.
 */
+// exports.exam = async (req, res) => {
+//     const userID = await profileID(req.headers.authorization);
+//     const user = await profile(userID);
+//     const clg = await college(user?.college);
+//     const dept = await department(user?.department);
+//     const exams = await Exam.find({ college: user?.college, department: user?.department }, {__v:0});
+//     const examList = await Promise.all(exams.map(async (exam) => {
+//       const sections = exam?.sections
+//       const start = exam?.start;
+//       const end = exam?.end;
+//       var status = getTimeStatus(start, end);
+//       const date = formatDateWithMonthAndTime(exam.date).split(',');
+//       const startTime = formatDateTime(start);
+//       const endTime = formatDateTime(end);
+//       const Attended = await Timer.find({studentid:userID,examid:exam?._id?.toString()})
+//       var status = "unattend";
+//       if(Attended.length >=1)
+// 	    status = "attend"
+//       return {
+//         _id: exam?._id,
+//         title: exam?.title,
+//         status: status,
+//         date: date[0],
+//         start: startTime,
+//         end: endTime,
+// 	    duration: exam?.duration,
+//         category: exam?.exam,
+//         sections: (exam?.sections).length,
+//         attendStatus: status,
+//       };
+//     }));
+//     return res.json({ exams: examList });
+// };
 exports.exam = async (req, res) => {
     const userID = await profileID(req.headers.authorization);
     const user = await profile(userID);
-    const clg = await college(user?.college);
-    const dept = await department(user?.department);
-  
-    const exams = await Exam.find({ college: user?.college, department: user?.department }, {__v:0});
 
-    const examList = await Promise.all(exams.map(async (exam) => {
-      const sections = exam?.sections
-      const start = exam?.start;
-      const end = exam?.end;
-      var status = getTimeStatus(start, end);
-      const date = formatDateWithMonthAndTime(exam.date).split(',');
-      const startTime = formatDateTime(start);
-      const endTime = formatDateTime(end);
-      const Attended = await Timer.find({studentid:userID,examid:exam?._id?.toString()})
-	console.log(Attended)
-      var status = "unattend";
-      if(Attended.length >=1)
-	    status = "attend"
-      return {
-        _id: exam?._id,
-        title: exam?.title,
-        status: status,
-        date: date[0],
-        start: startTime,
-        end: endTime,
-	    duration: exam?.duration,
-        category: exam?.exam,
-        sections: (exam?.sections).length,
-        attendStatus: status,
-      };
+    const exams = await Exam.find({
+        college: user?.college,
+        department: user?.department
+    });
+
+    if (!exams.length) {
+        return res.json({ status: "No exams found for the user's department and college" });
+    }
+
+    const examDetails = await Promise.all(exams.map(async (exam) => {
+        const sectionDetails = await Promise.all(
+            (exam.sections).map(async (section) => {
+                const sec = await Section.findOne({ _id: section }, { 'questions.answer': 0 });
+                
+                const totalQuestions = sec.questions.length;
+                
+                return {
+                    _id: sec._id,
+                    name: sec.name,
+                    category: sec.category,
+                    time: sec.time,
+                    totalQuestions 
+                };
+            })
+        );
+
+        return {
+            title: exam.title,
+            college: await College.findOne({ _id: exam.college }).then(c => c.college),
+            department: await Department.findOne({ _id: exam.department }).then(d => d.department),
+            year: await Department.findOne({ _id: exam.department }).then(d => d.year),
+            semester: await Department.findOne({ _id: exam.department }).then(d => d.semester),
+            section: await Department.findOne({ _id: exam.department }).then(d => d.section),
+            date: formatDateWithMonthAndTime(exam.date).split(',')[0],
+            start: formatDateTime(exam.start),
+            end: formatDateTime(exam.end),
+            status: getTimeStatus(exam.start, exam.end),
+            category: exam.category,
+            sections: sectionDetails,
+        };
     }));
 
-    return res.json({ exams: examList });
+    return res.json({ exams: examDetails });
 };
+
+
 
 /*
 - Get the exam detail
