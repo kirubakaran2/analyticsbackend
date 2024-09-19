@@ -323,54 +323,120 @@ exports.profile = async(req,res) => {
 //     }));
 //     return res.json({ exams: examList });
 // };
+// exports.exam = async (req, res) => {
+//     const userID = await profileID(req.headers.authorization);
+//     const user = await profile(userID);
+
+//     const exams = await Exam.find({
+//         college: user?.college,
+//         department: user?.department
+//     });
+
+//     if (!exams.length) {
+//         return res.json({ status: "No exams found for the user's department and college" });
+//     }
+
+//     const examDetails = await Promise.all(exams.map(async (exam) => {
+//         const sectionDetails = await Promise.all(
+//             (exam.sections).map(async (section) => {
+//                 const sec = await Section.findOne({ _id: section }, { 'questions.answer': 0 });
+                
+//                 const totalQuestions = sec.questions.length;
+                
+//                 return {
+//                     _id: sec._id,
+//                     name: sec.name,
+//                     category: sec.category,
+//                     time: sec.time,
+//                     totalQuestions 
+//                 };
+//             })
+//         );
+
+//         return {
+//             title: exam.title,
+//             college: await College.findOne({ _id: exam.college }).then(c => c.college),
+//             department: await Department.findOne({ _id: exam.department }).then(d => d.department),
+//             year: await Department.findOne({ _id: exam.department }).then(d => d.year),
+//             semester: await Department.findOne({ _id: exam.department }).then(d => d.semester),
+//             section: await Department.findOne({ _id: exam.department }).then(d => d.section),
+//             date: formatDateWithMonthAndTime(exam.date).split(',')[0],
+//             start: formatDateTime(exam.start),
+//             end: formatDateTime(exam.end),
+//             status: getTimeStatus(exam.start, exam.end),
+//             category: exam.category,
+//             sections: sectionDetails,
+//         };
+//     }));
+
+//     return res.json({ exams: examDetails });
+// };
 exports.exam = async (req, res) => {
-    const userID = await profileID(req.headers.authorization);
-    const user = await profile(userID);
+    try {
+        const userID = await profileID(req.headers.authorization);
+        const user = await profile(userID);
 
-    const exams = await Exam.find({
-        college: user?.college,
-        department: user?.department
-    });
+        const exams = await Exam.find({
+            college: user?.college,
+            department: user?.department
+        }, { __v: 0 });
 
-    if (!exams.length) {
-        return res.json({ status: "No exams found for the user's department and college" });
+        if (!exams.length) {
+            return res.json({ status: "No exams found for the user's department and college" });
+        }
+
+        const examList = await Promise.all(exams.map(async (exam) => {
+            const sections = exam?.sections;
+            const start = exam?.start;
+            const end = exam?.end;
+            const date = formatDateWithMonthAndTime(exam.date).split(',')[0];
+            const startTime = formatDateTime(start);
+            const endTime = formatDateTime(end);
+            
+            const attended = await Timer.find({ studentid: userID, examid: exam?._id?.toString() });
+            let status = attended.length >= 1 ? "attend" : "unattend";
+
+            const sectionDetails = await Promise.all(
+                sections.map(async (sectionId) => {
+                    const sec = await Section.findOne({ _id: sectionId }, { 'questions.answer': 0 });
+                    
+                    const totalQuestions = sec.questions.length;
+                    return {
+                        _id: sec._id,
+                        name: sec.name,
+                        category: sec.category,
+                        time: sec.time,
+                        totalQuestions
+                    };
+                })
+            );
+
+            return {
+                _id: exam?._id,
+                title: exam?.title,
+                college: await College.findOne({ _id: exam.college }).then(c => c.college),
+                department: await Department.findOne({ _id: exam.department }).then(d => d.department),
+                year: await Department.findOne({ _id: exam.department }).then(d => d.year),
+                semester: await Department.findOne({ _id: exam.department }).then(d => d.semester),
+                section: await Department.findOne({ _id: exam.department }).then(d => d.section),
+                date: date,
+                start: startTime,
+                end: endTime,
+                status: getTimeStatus(start, end),
+                category: exam.category,
+                sections: sectionDetails,
+                duration: sectionDetails.reduce((acc, sec) => acc + sec.time, 0), 
+                attendStatus: status
+            };
+        }));
+
+        return res.json({ exams: examList });
+    } catch (error) {
+        console.error("Error fetching exams: ", error);
+        return res.status(500).json({ error: "Internal Server Error" });
     }
-
-    const examDetails = await Promise.all(exams.map(async (exam) => {
-        const sectionDetails = await Promise.all(
-            (exam.sections).map(async (section) => {
-                const sec = await Section.findOne({ _id: section }, { 'questions.answer': 0 });
-                
-                const totalQuestions = sec.questions.length;
-                
-                return {
-                    _id: sec._id,
-                    name: sec.name,
-                    category: sec.category,
-                    time: sec.time,
-                    totalQuestions 
-                };
-            })
-        );
-
-        return {
-            title: exam.title,
-            college: await College.findOne({ _id: exam.college }).then(c => c.college),
-            department: await Department.findOne({ _id: exam.department }).then(d => d.department),
-            year: await Department.findOne({ _id: exam.department }).then(d => d.year),
-            semester: await Department.findOne({ _id: exam.department }).then(d => d.semester),
-            section: await Department.findOne({ _id: exam.department }).then(d => d.section),
-            date: formatDateWithMonthAndTime(exam.date).split(',')[0],
-            start: formatDateTime(exam.start),
-            end: formatDateTime(exam.end),
-            status: getTimeStatus(exam.start, exam.end),
-            category: exam.category,
-            sections: sectionDetails,
-        };
-    }));
-
-    return res.json({ exams: examDetails });
 };
+
 
 
 
