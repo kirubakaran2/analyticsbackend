@@ -5,6 +5,7 @@ const Exam = require("../Schema/events");
 const Event = require("../Schema/techevent");
 const Department = require("../Schema/department");
 const College = require("../Schema/college")
+const SuperAdmin = require("../Schema/superadmin")
 const Section = require("../Schema/sections")
 const Admin = require("../Schema/admin")
 
@@ -94,6 +95,7 @@ exports.college = async(req,res) => {
     await Department.findOneAndDelete({college:collegeID}).catch(() => {return res.json({status:"Invalid College ID"})});
 
     await Student.deleteMany({college:collegeID}).catch(() => {return res.json({status:"Invalid College ID"})});
+    await SuperAdmin.deleteMany({college:collegeID}).catch(() => {return res.json({status:"Invalid College ID"})});
 
     await Exam.deleteMany({college:collegeID}).catch(() => {return res.json({status:"Invalid College ID"})});
 
