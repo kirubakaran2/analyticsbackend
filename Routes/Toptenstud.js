@@ -31,13 +31,11 @@ async function profileID(req) {
 exports.topTenScoresForstudent = async (req, res) => {
     try {
         const user = await profileID(req);
-  
+        
         if (!user || user.role !== 'student') {
             return res.status(401).json({ status: "Unauthorized" });
         }
-  
-        const matchCondition = { "student.college": user.college };
-  
+
         const topTenStudents = await Performance.aggregate([
             {
                 $group: {
@@ -46,17 +44,20 @@ exports.topTenScoresForstudent = async (req, res) => {
                     uniqueExamCount: { $addToSet: "$examid" }
                 }
             },
+            
             {
                 $addFields: {
                     uniqueExamCount: { $size: "$uniqueExamCount" }
                 }
             },
+            
             {
-                $sort: { totalObtainPoints: -1 }
+                $sort: { 
+                    totalObtainPoints: -1,
+                    _id: 1 
+                }
             },
-            {
-                $limit: 10
-            },
+            
             {
                 $lookup: {
                     from: "users",
@@ -65,22 +66,60 @@ exports.topTenScoresForstudent = async (req, res) => {
                     as: "student"
                 }
             },
+            
             {
                 $unwind: "$student"
             },
+            
             {
-                $match: matchCondition
+                $match: { 
+                    "student.college": user.college 
+                }
             },
+            
+            {
+                $group: {
+                    _id: "$totalObtainPoints",
+                    students: { 
+                        $push: {
+                            student: {
+                                _id: "$_id",
+                                name: "$student.name",
+                                college: "$student.college"
+                            },
+                            totalObtainPoints: "$totalObtainPoints"
+                        }
+                    }
+                }
+            },
+            
+            {
+                $sort: { _id: -1 }
+            },
+            
+            {
+                $unwind: "$students"
+            },
+            
+            {
+                $replaceRoot: { 
+                    newRoot: "$students" 
+                }
+            },
+            
+            {
+                $limit: 10
+            },
+
             {
                 $project: {
                     _id: 1,
                     totalObtainPoints: 1,
-                    "student.name": 1,
-                    "student.college": 1
+                    student: 1
                 }
             }
         ]);
-  
+
         res.json({ students: topTenStudents });
     } catch (err) {
         console.error("Error fetching top ten scores for college:", err);
