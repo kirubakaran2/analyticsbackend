@@ -399,26 +399,30 @@ exports.profile = async(req,res) => {
 
 exports.getSA = async (req, res) => {
     try {
-        const superadmins = await User.find({});
-        const users = [];
-
-        for (const a of superadmins) {
-            const collegeName = await CollegeName(a?.college);
-            users.push({
-                _id: a?._id,
-                college: collegeName || "Unknown College", // Handle null case
-                name: a?.name,
-                username: a?.username,
-                email: a?.email,
-            });
-        }
-
-        return res.json({ superadmins: users });
+      const superadmins = await User.find({});
+      const users = [];
+  
+      for (const a of superadmins) {
+        const collegeName = await CollegeName(a?.college);
+        users.push({
+          _id: a?._id,
+          college: collegeName || "Unknown College", // Handle null case
+          name: a?.name,
+          username: a?.username,
+          email: a?.email,
+        });
+      }
+  
+      // Reverse the order of the users array
+      users.reverse();
+  
+      return res.json({ superadmins: users });
     } catch (err) {
-        console.error("Error fetching superadmins:", err);
-        return res.status(500).json({ status: "Something went wrong" });
+      console.error("Error fetching superadmins:", err);
+      return res.status(500).json({ status: "Something went wrong" });
     }
-};
+  };
+  
 
 exports.getSAS = async(req,res) => {
     const { superadminID } = req.params;
