@@ -10,10 +10,18 @@ exports.dashboard = async () => {
 }
 
 // Event 
-exports.evt = async(req,res) => {
-    const event = await Techevent.find({},{eventID:0});
-    return res.json({event:event});
-}
+exports.evt = async (req, res) => {
+    try {
+      const event = await Techevent.find({}, { eventID: 0 });
+      event.reverse();
+      return res.json({ event: event });
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ message: "An error occurred while fetching events." });
+    }
+  };
+  
+  
 
 /*
 - Listout the events allocated for the department of their students.
