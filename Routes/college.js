@@ -99,7 +99,17 @@ exports.new = async (req,res) => {
 - Return the college name and place.
 - [ Update with image. ]
 */
-exports.college = async(req,res) => {
-    const clg = await CollegeDB.find({});
-    return res.json({colleges:clg});
-}
+exports.college = async (req, res) => {
+    try {
+      const clg = await CollegeDB.find({});
+      
+      // Reverse the array of colleges
+      clg.reverse();
+      
+      return res.json({ colleges: clg });
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ message: "An error occurred while fetching colleges." });
+    }
+  };
+  
