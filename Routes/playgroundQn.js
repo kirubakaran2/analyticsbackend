@@ -9,148 +9,144 @@ const User = require("../Schema/user")
 const SuperAdmin = require("../Schema/superadmin")
 const jwt = require("jsonwebtoken")
 
-exports.new = async (req,res) => {
-    const { title, date, start,end,college, department, questions} = req.body;
-    var overAllPoint = 0;
-    var overDuration = 0;
-    const {name,category,hours,minutes,qn} = questions;
-    let duration = (hours*60) + minutes;
-    overDuration = (duration === undefined || duration === null) ? null : duration;
-            // Calculate the score
+exports.new = async (req, res) => {
+  const { title, date, start, end, college, department, questions } = req.body;
+  var overAllPoint = 0;
+  var overDuration = 0;
+  const { name, category, hours, minutes, qn } = questions;
+  
+  let duration = (hours * 60) + minutes;
+  overDuration = (duration === undefined || duration === null) ? null : duration;
 
-    for(let question of qn) {
-                    // Output
-                    for(let out of question.output) {
-                        overAllPoint += out.rating
-                    }
-    
-                    // Testcase
-                    for(let test of question.testcase) {
-                        overAllPoint += test.rating
-                    }
-    }
-    if(duration===null||hours===undefined||minutes===undefined){
-	var sect = await Section({
-		name:name,
-		category:category,
-		questions:qn
-	})
-    }
-    else {
- 	console.log("Here")
-        var sect = await Section({
-                name: name,
-                category: category,
-                time: duration,
-                questions: qn
-    });
-    }
-    let sectionID = await sect.save();
-    
+  for (let question of qn) {
+      for (let out of question.output) {
+          overAllPoint += out.rating;
+      }
 
-    // Create a exam 
-    var newExam = await Playground({
-        title: title,
-        category: category,
-        date: date,
-        start: start,
-        end: end,
-        sections: sectionID._id,
-        department: department,
-        college: college,
-        overallRating: overAllPoint
-    });
-    // Save the test
-    newExam.save()
-    .then( (newEvt) => {
-        res.json({response:`Added new playground`})
-    })
-    .catch((err) => res.json({response:`Something wrong.\nBacktrack\n${err}`}))
-}
+      for (let test of question.testcase) {
+          overAllPoint += test.rating;
+      }
+  }
 
-exports.admin = async(req,res) => {
-    try{
-        let playground = await Playground.aggregate(
-	[  {
-    $unwind:
+  let sect;
+  if (duration === null || hours === undefined || minutes === undefined) {
+      sect = await Section({
+          name: name,
+          category: category,
+          questions: qn
+      });
+  } else {
+      console.log("Here");
+      sect = await Section({
+          name: name,
+          category: category,
+          time: duration,
+          questions: qn
+      });
+  }
+
+  let sectionID = await sect.save();
+
+  let departmentArray = Array.isArray(department) ? department : [department];  // Ensure 'department' is an array
+
+  var newExam = await Playground({
+      title: title,
+      category: category,
+      date: date,
+      start: start,
+      end: end,
+      sections: sectionID._id,
+      department: departmentArray,  
+      college: college,
+      overallRating: overAllPoint
+  });
+
+  newExam.save()
+      .then((newEvt) => {
+          res.json({ response: `Added new playground` });
+      })
+      .catch((err) => res.json({ response: `Something went wrong.\nBacktrack\n${err}` }));
+};
+
+exports.admin = async (req, res) => {
+  try {
+    let playground = await Playground.aggregate([
       {
-        path: "$department",
-        includeArrayIndex: "0",
-        preserveNullAndEmptyArrays: true,
-      },
-  },
-  {
-    $addFields:
-      {
-        departmentID: {
-          $toObjectId: "$department",
-        },
-        collegeID: {
-          $toObjectId: "$college",
+        $unwind: {
+          path: "$department",
+          includeArrayIndex: "0",
+          preserveNullAndEmptyArrays: true,
         },
       },
-  },
-  {
-    $lookup:
       {
-        from: "colleges",
-        localField: "collegeID",
-        foreignField: "_id",
-        as: "college",
+        $addFields: {
+          departmentID: {
+            $toObjectId: "$department",
+          },
+          collegeID: {
+            $toObjectId: "$college",
+          },
+        },
       },
-  },
-  {
-    $unwind:
       {
-        path: "$college",
-        includeArrayIndex: "0",
-        preserveNullAndEmptyArrays: true,
+        $lookup: {
+          from: "colleges",
+          localField: "collegeID",
+          foreignField: "_id",
+          as: "college",
+        },
       },
-  },
-  {
-    $lookup:
       {
-        from: "departments",
-        localField: "departmentID",
-        foreignField: "_id",
-        as: "department",
+        $unwind: {
+          path: "$college",
+          includeArrayIndex: "0",
+          preserveNullAndEmptyArrays: true,
+        },
       },
-  },
-  {
-    $unwind:
       {
-        path: "$department",
-        includeArrayIndex: "0",
-        preserveNullAndEmptyArrays: true,
+        $lookup: {
+          from: "departments",
+          localField: "departmentID",
+          foreignField: "_id",
+          as: "department",
+        },
       },
-  },
-  {
-    $project:
       {
-        _id: 1,
-        title: 1,
-        date: 1,
-        start: 1,
-        end: 1,
-        sections: 1,
-        department: "$department.department",
-        year: "$department.year",
-        semester: "$department.semester",
-        section: "$department.section",
-        college: "$college.college",
-        overallRating: 1,
-        departmentID: 1,
-        collegeID: 1,
+        $unwind: {
+          path: "$department",
+          includeArrayIndex: "0",
+          preserveNullAndEmptyArrays: true,
+        },
       },
-  },
-]
-	)
-        return res.status(200).json({playground:playground})
-    }
-    catch(err) {
-        return res.status(500).json({status:"Something went wrong"})
-    }
-}
+      {
+        $project: {
+          _id: 1,
+          title: 1,
+          date: 1,
+          start: 1,
+          end: 1,
+          sections: 1,
+          department: "$department.department",
+          year: "$department.year",
+          semester: "$department.semester",
+          section: "$department.section",
+          college: "$college.college",
+          overallRating: 1,
+          departmentID: 1,
+          collegeID: 1,
+        },
+      },
+    ]);
+
+    // Reverse the order of the playground array
+    playground.reverse();
+
+    return res.status(200).json({ playground: playground });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ status: "Something went wrong" });
+  }
+};
 
 
 async function saprofileID(token) {
@@ -192,95 +188,87 @@ async function profileID(token) {
         return null;
     }
 }
+exports.superadmin = async (req, res) => {
+  try {
+      
+      let user = await saprofileID(req);
 
-exports.superadmin = async(req,res) => {
-    try{
-        let user = await saprofileID(req);
-        let playground = await Playground.aggregate([
-    {
-		$match:{
-				college: {$eq: user?.college}
-		}
-  },
-  {
-    $unwind:
-      {
-        path: "$department",
-        includeArrayIndex: "0",
-        preserveNullAndEmptyArrays: true,
-      },
-  },
-  {
-    $addFields:
-      {
-        departmentID: {
-          $toObjectId: "$department",
-        },
-        collegeID: {
-          $toObjectId: "$college",
-        },
-      },
-  },
-  {
-    $lookup:
-      {
-        from: "colleges",
-        localField: "collegeID",
-        foreignField: "_id",
-        as: "college",
-      },
-  },
-  {
-    $unwind:
-      {
-        path: "$college",
-        includeArrayIndex: "0",
-        preserveNullAndEmptyArrays: true,
-      },
-  },
-  {
-    $lookup:
-      {
-        from: "departments",
-        localField: "departmentID",
-        foreignField: "_id",
-        as: "department",
-      },
-  },
-  {
-    $unwind:
-      {
-        path: "$department",
-        includeArrayIndex: "0",
-        preserveNullAndEmptyArrays: true,
-      },
-  },
-  {
-    $project:
-      {
-        _id: 1,
-        title: 1,
-        date: 1,
-        start: 1,
-        end: 1,
-        sections: 1,
-        department: "$department.department",
-        year: "$department.year",
-        semester: "$department.semester",
-        section: "$department.section",
-        college: "$college.college",
-        overallRating: 1,
-        departmentID: 1,
-        collegeID: 1,
-      },
-  },
-])
-        return res.status(200).json({playground:playground})
-    }
-    catch(err) {
-        return res.status(500).json({status:"Something went wrong"})
-    }
-}
+      let playground = await Playground.aggregate([
+          {
+              $match: {
+                  college: { $eq: user?.college }  
+              }
+          },
+          {
+              $unwind: {
+                  path: "$department", 
+                  preserveNullAndEmptyArrays: true  
+              }
+          },
+          {
+              $addFields: {
+                  departmentID: {
+                      $toObjectId: { $trim: { input: "$department" } },
+                  },
+                  collegeID: {
+                      $toObjectId: { $trim: { input: "$college" } },  
+                  },
+              }
+          },
+          {
+              $lookup: {
+                  from: "colleges",  
+                  localField: "collegeID",
+                  foreignField: "_id",
+                  as: "college",
+              }
+          },
+          {
+              $unwind: {
+                  path: "$college", 
+                  preserveNullAndEmptyArrays: true
+              }
+          },
+          {
+              $lookup: {
+                  from: "departments",  
+                  localField: "departmentID",
+                  foreignField: "_id",
+                  as: "departmentDetails",  
+              }
+          },
+          {
+              $unwind: {
+                  path: "$departmentDetails", 
+                  preserveNullAndEmptyArrays: true
+              }
+          },
+          {
+              $project: {
+                  _id: 1,
+                  title: 1,
+                  date: 1,
+                  start: 1,
+                  end: 1,
+                  sections: 1,
+                  department: "$departmentDetails.department", 
+                  year: "$departmentDetails.year",  
+                  semester: "$departmentDetails.semester", 
+                  section: "$departmentDetails.section",  
+                  college: "$college.college",  
+                  overallRating: 1,
+                  departmentID: 1,
+                  collegeID: 1,
+              }
+          }
+      ]);
+
+      return res.status(200).json({ playground: playground });
+  } catch (err) {
+      console.error(err);  
+      return res.status(500).json({ status: "Something went wrong", error: err.message });
+  }
+};
 
 exports.student = async(req,res) => {
     try{
