@@ -215,7 +215,7 @@ exports.adminDashboard = async (req,res) => {
                   $gt: ["$end", new Date()],
                 },
                 then: "ongoing",
-                else: "ended", // Adjusted status name (optional)
+                else: "ended",
               },
             },
           },
@@ -223,6 +223,7 @@ exports.adminDashboard = async (req,res) => {
       },
   },
 ])
+    examList.reverse()
     return res.json({exams:examList})
   }
   catch(er) {console.log(er);return res.json({status:"Something went wrong"}) }
