@@ -22,12 +22,8 @@ exports.departmentStats = async (req, res) => {
         let stats = await User.aggregate([
             {
                 $addFields: {
-                    collegeID: {
-                        $toObjectId: "$college",
-                    },
-                    departmentID: {
-                        $toObjectId: "$department",
-                    },
+                    collegeID: { $toObjectId: "$college" },
+                    departmentID: { $toObjectId: "$department" },
                 },
             },
             {
@@ -84,7 +80,7 @@ exports.departmentStats = async (req, res) => {
                         departmentName: "$department.department",
                         collegeName: "$college.college",
                     },
-                    studentCount: { $sum: 1 },
+                    uniqueStudents: { $addToSet: "$_id" },  // Collect unique student IDs
                     totalPoints: { $sum: "$record.exams.points" },
                     totalObtainPoints: { $sum: "$record.exams.obtainpoint" },
                 },
@@ -94,7 +90,7 @@ exports.departmentStats = async (req, res) => {
                     departmentID: "$_id.departmentID",
                     departmentName: "$_id.departmentName",
                     collegeName: "$_id.collegeName",
-                    studentCount: 1,
+                    studentCount: { $size: "$uniqueStudents" },  // Count unique students
                     totalPoints: 1,
                     totalObtainPoints: 1,
                 },
@@ -107,6 +103,7 @@ exports.departmentStats = async (req, res) => {
         return res.status(500).json({ status: "Something went wrong", error: err.message });
     }
 };
+
 
 
 // exports.departmentcount = async (req, res) => {
