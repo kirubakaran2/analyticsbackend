@@ -51,258 +51,289 @@ async function userprofileID(token) {
     }
 }
 
-exports.admin = async(req,res) => {
-    const {examID} = req.params;
-    var exam = await Exam.findOne({_id:examID})
-    if(!exam) {
-        return res.json({status:"Exam not found"});
-    }
-    var sections = exam?.sections
-    var department = exam?.department
-
-    var users = await User.aggregate(
-        [
-            {
-                $match: {
-                    department: {$in:department}
-                }
-            },
-            {
-              $addFields:
-                /**
-                 * newField: The new field name.
-                 * expression: The new field expression.
-                 */ 
-                {
-                  collegeInfo: {
-                    $toObjectId: "$college",
-                  },
-                  departmentInfo: {
-                    $toObjectId: "$department",
-                  },
-                },
-            },
-            {
-              $lookup:
-                /**
-                 * from: The target collection.
-                 * localField: The local join field.
-                 * foreignField: The target join field.
-                 * as: The name for the results.
-                 * pipeline: Optional pipeline to run on the foreign collection.
-                 * let: Optional variables to use in the pipeline field stages.
-                 */
-                {
-                  from: "colleges",
-                  localField: "collegeInfo",
-                  foreignField: "_id",
-                  as: "collegeInfo",
-                },
-            },
-            {
-              $lookup:
-                /**
-                 * from: The target collection.
-                 * localField: The local join field.
-                 * foreignField: The target join field.
-                 * as: The name for the results.
-                 * pipeline: Optional pipeline to run on the foreign collection.
-                 * let: Optional variables to use in the pipeline field stages.
-                 */
-                {
-                  from: "departments",
-                  localField: "departmentInfo",
-                  foreignField: "_id",
-                  as: "departmentInfo",
-                },
-            },
-            {
-              $unwind: "$departmentInfo",
-            },
-            {
-              $unwind: "$collegeInfo",
-            },
-            {
-              $project:
-                /**
-                 * specifications: The fields to
-                 *   include or exclude.
-                 */
-                {
-                  name: 1,
-                  _id: 1,
-                  username: 1,
-                  role: 1,
-                  rollno: 1,
-                  collegeID: "$college",
-                  departmentID: "$department",
-                  college: "$collegeInfo.college",
-                  department: "$departmentInfo.department",
-                  year: "$departmentInfo.year",
-                  semester: "$departmentInfo.semester",
-                  section: "$departmentInfo.section",
-                },
-            },
-          ])
-
-    var student = new Array();
-    var noa = 0;
-    var nou = 0;
-    for(let user of users) {
-        let scores = await Scoring.find({studentid:user?._id,sectionid:{$in:sections}})
-        if(scores.length > 0) {
-            student.push({
-                "_id": user._id,
-                "name": user.name,
-                "username": user.username,
-                "role": user.role,
-                "rollno": user.rollno,
-                "collegeID": user.collegeID,
-                "departmentID": user.departmentID,
-                "college": user.college,
-                "department": user.department,
-                "year": user.year,
-                "semester": user.semester,
-                "section": user.section,
-                status:"attended",
-                score:scores
-            });
-	   noa++;
-        }
-        else {
-            student.push({
-                "_id": user._id,
-                "name": user.name,
-                "username": user.username,
-                "role": user.role,
-                "rollno": user.rollno,
-                "collegeID": user.collegeID,
-                "departmentID": user.departmentID,
-                "college": user.college,
-                "department": user.department,
-                "year": user.year,
-                "semester": user.semester,
-                "section": user.section,
-                status:"unattend",
-            });
-	    nou++;
-        }
-    }
-
-    return res.json({student:student,noOfAttend:noa,noOfUnattend:nou})
-}
-
-exports.superadmin = async(req,res) => {
-  const {examID} = req.params;
-  var exam = await Exam.findOne({_id:examID})
-  if(!exam) {
-      return res.json({status: "Exam not found"});
+exports.admin = async (req, res) => {
+  const { examID } = req.params;
+  var exam = await Exam.findOne({ _id: examID });
+  if (!exam) {
+      return res.json({ status: "Exam not found" });
   }
 
   var sections = exam?.sections;
   var department = exam?.department;
 
-  var users = await User.aggregate(
-      [
-          {
-              $match: {
-                  department: {$in:department}
-              }
-          },
-          {
-            $addFields: {
-                collegeInfo: {
+  var users = await User.aggregate([
+      {
+          $match: {
+              department: { $in: department }
+          }
+      },
+      {
+          $addFields: {
+              collegeInfo: {
                   $toObjectId: "$college",
-                },
-                departmentInfo: {
+              },
+              departmentInfo: {
                   $toObjectId: "$department",
-                },
               },
           },
-          {
-            $lookup: {
-                from: "colleges",
-                localField: "collegeInfo",
-                foreignField: "_id",
-                as: "collegeInfo",
-              },
+      },
+      {
+          $lookup: {
+              from: "colleges",
+              localField: "collegeInfo",
+              foreignField: "_id",
+              as: "collegeInfo",
           },
-          {
-            $lookup: {
-                from: "departments",
-                localField: "departmentInfo",
-                foreignField: "_id",
-                as: "departmentInfo",
-              },
+      },
+      {
+          $lookup: {
+              from: "departments",
+              localField: "departmentInfo",
+              foreignField: "_id",
+              as: "departmentInfo",
           },
-          {
-            $unwind: "$departmentInfo",
+      },
+      {
+          $unwind: "$departmentInfo",
+      },
+      {
+          $unwind: "$collegeInfo",
+      },
+      {
+          $project: {
+              name: 1,
+              _id: 1,
+              username: 1,
+              role: 1,
+              rollno: 1,
+              collegeID: "$college",
+              departmentID: "$department",
+              college: "$collegeInfo.college",
+              department: "$departmentInfo.department",
+              year: "$departmentInfo.year",
+              semester: "$departmentInfo.semester",
+              section: "$departmentInfo.section",
           },
-          {
-            $unwind: "$collegeInfo",
-          },
-          {
-            $project: {
-                name: 1,
-                _id: 1,
-                username: 1,
-                role: 1,
-                rollno: 1,
-                collegeID: "$college",
-                departmentID: "$department",
-                college: "$collegeInfo.college",
-                department: "$departmentInfo.department",
-                year: "$departmentInfo.year",
-                semester: "$departmentInfo.semester",
-                section: "$departmentInfo.section",
-              },
-          },
-      ]
-  );
+      },
+  ]);
 
   var student = new Array();
-  var noa = 0;  // Number of students who attended
-  var nou = 0;  // Number of students who did not attend
+  var noa = 0;
+  var nou = 0;
 
   for (let user of users) {
-      let scores = await Scoring.find({studentid: user?._id, sectionid: {$in: sections}});
+      let scores = await Scoring.find({ studentid: user?._id, sectionid: { $in: sections } });
+      let totalPoints = 0;
+      let totalMaxPoints = 0;
+      let userSections = [];
+      let sectionPercentages = [];
+
+      // Track sections where the student didn't submit a score
+      let skippedSections = new Set(sections.map(section => section.toString())); // Set of section IDs
+      let attendedSections = new Set(); // Sections that the student attended
+
       if (scores.length > 0) {
-          student.push({
-              "_id": user._id,
-              "name": user.name,
-              "username": user.username,
-              "role": user.role,
-              "rollno": user.rollno,
-              "collegeID": user.collegeID,
-              "departmentID": user.departmentID,
-              "college": user.college,
-              "department": user.department,
-              "year": user.year,
-              "semester": user.semester,
-              "section": user.section,
-              status: "attended",
-              score: scores
-          });
-          noa++;
-      } else {
-          student.push({
-              "_id": user._id,
-              "name": user.name,
-              "username": user.username,
-              "role": user.role,
-              "rollno": user.rollno,
-              "collegeID": user.collegeID,
-              "departmentID": user.departmentID,
-              "college": user.college,
-              "department": user.department,
-              "year": user.year,
-              "semester": user.semester,
-              "section": user.section,
-              status: "unattend",
-          });
-          nou++;
+          // Process each score submitted by the student
+          for (let score of scores) {
+              attendedSections.add(score.sectionid.toString()); // Mark section as attended
+              totalPoints += score.points; // User's points in the section
+              totalMaxPoints += score.overPoint; // Total points available in that section
+
+              // Calculate percentage for this section
+              let sectionPercentage = (score.points / score.overPoint) * 100;
+              sectionPercentages.push(sectionPercentage);
+
+              userSections.push({
+                  sectionId: score.sectionid,
+                  points: score.points,
+                  overPoint: score.overPoint,
+                  sectionPercentage: sectionPercentage.toFixed(2) + '%'
+              });
+          }
       }
+
+      // Handle skipped sections
+      sections.forEach(section => {
+          if (!attendedSections.has(section.toString())) {
+              // If section wasn't attended, consider it as 0%
+              sectionPercentages.push(0); // Add 0% for skipped sections
+              userSections.push({
+                  sectionId: section,
+                  points: 0,
+                  overPoint: 0,
+                  sectionPercentage: "0.00%"
+              });
+          }
+      });
+
+      // Calculate the overall percentage
+      let overallPercentage = (sectionPercentages.reduce((acc, curr) => acc + curr, 0) / sections.length).toFixed(2);
+      overallPercentage = overallPercentage + "%"; // Add percentage sign
+
+      student.push({
+          "_id": user._id,
+          "name": user.name,
+          "username": user.username,
+          "role": user.role,
+          "rollno": user.rollno,
+          "collegeID": user.collegeID,
+          "departmentID": user.departmentID,
+          "college": user.college,
+          "department": user.department,
+          "year": user.year,
+          "semester": user.semester,
+          "section": user.section,
+          status: "attended",
+          score: scores,
+          sections: userSections,
+          overallPercentage: overallPercentage
+      });
+      noa++;
   }
 
-  return res.json({student: student, noOfAttend: noa, noOfUnattend: nou});
+  return res.json({ student: student, noOfAttend: noa, noOfUnattend: nou });
+}
+
+
+exports.superadmin = async (req, res) => {
+  const { examID } = req.params;
+  var exam = await Exam.findOne({ _id: examID });
+  if (!exam) {
+      return res.json({ status: "Exam not found" });
+  }
+
+  var sections = exam?.sections;
+  var department = exam?.department;
+
+  var users = await User.aggregate([
+      {
+          $match: {
+              department: { $in: department }
+          }
+      },
+      {
+          $addFields: {
+              collegeInfo: {
+                  $toObjectId: "$college",
+              },
+              departmentInfo: {
+                  $toObjectId: "$department",
+              },
+          },
+      },
+      {
+          $lookup: {
+              from: "colleges",
+              localField: "collegeInfo",
+              foreignField: "_id",
+              as: "collegeInfo",
+          },
+      },
+      {
+          $lookup: {
+              from: "departments",
+              localField: "departmentInfo",
+              foreignField: "_id",
+              as: "departmentInfo",
+          },
+      },
+      {
+          $unwind: "$departmentInfo",
+      },
+      {
+          $unwind: "$collegeInfo",
+      },
+      {
+          $project: {
+              name: 1,
+              _id: 1,
+              username: 1,
+              role: 1,
+              rollno: 1,
+              collegeID: "$college",
+              departmentID: "$department",
+              college: "$collegeInfo.college",
+              department: "$departmentInfo.department",
+              year: "$departmentInfo.year",
+              semester: "$departmentInfo.semester",
+              section: "$departmentInfo.section",
+          },
+      },
+  ]);
+
+  var student = new Array();
+  var noa = 0;
+  var nou = 0;
+
+  for (let user of users) {
+      let scores = await Scoring.find({ studentid: user?._id, sectionid: { $in: sections } });
+      let totalPoints = 0;
+      let totalMaxPoints = 0;
+      let userSections = [];
+      let sectionPercentages = [];
+
+      // Track sections where the student didn't submit a score
+      let skippedSections = new Set(sections.map(section => section.toString())); // Set of section IDs
+      let attendedSections = new Set(); // Sections that the student attended
+
+      if (scores.length > 0) {
+          // Process each score submitted by the student
+          for (let score of scores) {
+              attendedSections.add(score.sectionid.toString()); // Mark section as attended
+              totalPoints += score.points; // User's points in the section
+              totalMaxPoints += score.overPoint; // Total points available in that section
+
+              // Calculate percentage for this section
+              let sectionPercentage = (score.points / score.overPoint) * 100;
+              sectionPercentages.push(sectionPercentage);
+
+              userSections.push({
+                  sectionId: score.sectionid,
+                  points: score.points,
+                  overPoint: score.overPoint,
+                  sectionPercentage: sectionPercentage.toFixed(2) + '%'
+              });
+          }
+      }
+
+      // Handle skipped sections
+      sections.forEach(section => {
+          if (!attendedSections.has(section.toString())) {
+              // If section wasn't attended, consider it as 0%
+              sectionPercentages.push(0); // Add 0% for skipped sections
+              userSections.push({
+                  sectionId: section,
+                  points: 0,
+                  overPoint: 0,
+                  sectionPercentage: "0.00%"
+              });
+          }
+      });
+
+      // Calculate the overall percentage
+      let overallPercentage = (sectionPercentages.reduce((acc, curr) => acc + curr, 0) / sections.length).toFixed(2);
+      overallPercentage = overallPercentage + "%"; // Add percentage sign
+
+      student.push({
+          "_id": user._id,
+          "name": user.name,
+          "username": user.username,
+          "role": user.role,
+          "rollno": user.rollno,
+          "collegeID": user.collegeID,
+          "departmentID": user.departmentID,
+          "college": user.college,
+          "department": user.department,
+          "year": user.year,
+          "semester": user.semester,
+          "section": user.section,
+          status: "attended",
+          score: scores,
+          sections: userSections,
+          overallPercentage: overallPercentage
+      });
+      noa++;
+  }
+
+  return res.json({ student: student, noOfAttend: noa, noOfUnattend: nou });
 }
