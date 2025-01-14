@@ -3,6 +3,7 @@ const Exam = require("../Schema/events");
 
 const getGraphData = async (studentId) => {
     const performance = await Performance.find({ studentid: studentId });
+    
     let numberOfMcq = 0;
     let numberOfCod = 0;
     let numberOfBot = 0;
@@ -35,20 +36,26 @@ const getGraphData = async (studentId) => {
         // Accumulate overall rating points from the exam
         overallPoints += exam.overallRating;
 
-        // Check if examId is already added
+        // Check if examId is already added to avoid duplicate entries
         if (!addedExamIds.has(exam._id.toString())) {
+            const examPercentage = exam.overallRating 
+                ? (perf.obtainpoint / exam.overallRating) * 100 
+                : 0; // Avoid division by zero
+
             OverAllPerf.push({
                 examId: exam._id,
                 examName: exam.title,
-                obtainpoint: perf.obtainpoint
+                obtainpointi: perf.obtainpoint,
+                obtainpoint: examPercentage.toFixed(2) + '%',  // Calculate and store the percentage
             });
-            addedExamIds.add(exam._id.toString()); // Add examId to set
+
+            addedExamIds.add(exam._id.toString()); // Add examId to set to avoid duplicates
         }
     }
 
     const totalCount = addedExamIds.size;
 
-    // Return calculated metrics
+    // Return calculated metrics including the percentages
     return {
         numberOfMcq,
         numberOfCod,
