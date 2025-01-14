@@ -129,7 +129,7 @@ exports.exam = async(req,res) => {
         for(const exam of exams) {
             const college = await CollegeName(exam.college);
             const departmentData = await Department.findOne({_id:exam.department});
-       	    if(!departmentData || ! college ){
+       	    if(!departmentData || !college ){
                 continue;
             }
             else {
@@ -151,12 +151,17 @@ exports.exam = async(req,res) => {
                 })
             }
         }
-        return res.json({exams:examList})
+
+        // Reverse the examList array
+        examList.reverse();
+
+        return res.json({exams: examList});
     }
     catch(err) {
-        return res.json({exams: "Error",err:err})
+        return res.json({exams: "Error", err: err});
     }
 }
+
 exports.examDetail = async (req,res) => {
     const {examID} = req.params;
 
