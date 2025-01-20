@@ -430,7 +430,7 @@ exports.exam = async (req, res) => {
             };
         }));
 
-        return res.json({ exams: examList });
+        return res.json({ exams: examList.reverse() });
     } catch (error) {
         console.error("Error fetching exams: ", error);
         return res.status(500).json({ error: "Internal Server Error" });
@@ -613,74 +613,77 @@ exports.examEval = async(req,res) => {
     var section = await Section.findOne({_id:sectionID})
     var secQn = section.questions;
     const {questions} = req.body;
-    console.log(questions);
     const userID = await profileID(req.headers.authorization);
     const user = await profile(userID)
 
     var timerExist = await Timer.findOne({examid:examID,sectionid:sectionID,studentid:userID});
     if(!timerExist) {
+        console.log('User has not attended the exam');
         return res.json({status:"You didn't attend the exam yet."})
     }
     var timeLeft = ((new Date().getTime() - new Date(timerExist.startTime).getTime()) / 60000); 
     timeLeft = timeLeft < 0 ? Math.abs(timeLeft) : timeLeft;
     let performanceOfStudent = await Performance.findOne({examid:examID,studentid:userID,section: sectionID});
+    
     if(performanceOfStudent !== null && section.category === "mcq") {
         let result = await Scoring.findOne({_id: performanceOfStudent.score[sectionID],studentid:userID})
+        console.log('MCQ already attended');
         return res.json({status:"You have been already attended this exam.", code: 402,result:result})
     }
 
     else if(timeLeft > section.time) {
+        console.log('Exam time over');
         return res.json({status:"Time is over. Can't evaluate.",code:401})
     }
     else if(section.category === "mcq") {
-        // Evaluation Process the mcq question
-        var mcqAnalysis = new Array();
+        var mcqAnalysis = [];
         var rating = 0;
         var overPoint = 0;
-        var attendQn = new Array();
+        var attendQn = [];
         
-        // Iteration the question user body
         for(let question of questions) {
-
-            // Iteration of section question
             for(let qn of secQn) {
-
-                // If number of question of both equal then check for answer of it
-            if(question.number === qn.number) {
-			let option = qn.answer;
-                    if(question.answer === qn.options[option]) {
+                if(question.number === qn.number) {
+                    let correctOptionIndex = qn.answer;
+                    let correctAnswer = qn.options[correctOptionIndex];
+                    let userSelectedAnswer = question.answer;
+                    if(userSelectedAnswer === correctAnswer) {
                         rating += qn.rating;
                         mcqAnalysis.push({
                             number: question.number,
-                            choosen: question.answer,
-                            correct: qn.options[option],
-                            status: true
-                        })
+                            choosen: userSelectedAnswer,
+                            correct: correctAnswer,
+                            status: true,
+                            rating: qn.rating
+                        });
                     }
                     else {
                         mcqAnalysis.push({
                             number: question.number,
-                            choose: question.answer,
-                            correct: qn.options[option],
-                            status: false
-                        })
+                            choosen: userSelectedAnswer,
+                            correct: correctAnswer,
+                            status: false,
+                            rating: 0
+                        });
                     }
+                    
                     overPoint += qn.rating;
                     attendQn.push(question.number);
+
+                    break;
                 }
             }
         }
 
         let newScore = await Scoring({
             sectionid: sectionID,
-	        studentid: userID,
+            studentid: userID,
             category: section.category,
             points: rating,
             overPoint: overPoint,
             timetaken: timeLeft,
             questions: attendQn,
             performance: mcqAnalysis
-
         });
 
         await newScore.save().then(async (doc) => {
@@ -697,14 +700,26 @@ exports.examEval = async(req,res) => {
             await newPerformance.save().then(async () => {
                 let sec = await Section.findOne({_id: sectionID},{questions:0})
                 UpdateScoreBoard(user,examID,sectionID,section.category,overPoint,rating)
-                return res.json({sectionID: sectionID, examID: examID, section: sec,overPoint:overPoint, obtainPoint: rating, timetaken:timeLeft,code:200})
+                
+                
+                return res.json({
+                    sectionID: sectionID, 
+                    examID: examID, 
+                    section: sec,
+                    overPoint: overPoint, 
+                    obtainPoint: rating, 
+                    timetaken: timeLeft,
+                    performance: mcqAnalysis,
+                    code: 200
+                });
             }).catch((err) => {
+                console.error('Performance Save Error:', err);
                 return res.json({status:"Something went wrong!!", code:301})
-            })
-        }).
-        catch((err) => {
-            return res.json({status:"Something went wrong", code:301,error:err})
-        })
+            });
+        }).catch((err) => {
+            console.error('Scoring Save Error:', err);
+            return res.json({status:"Something went wrong", code:301, error:err})
+        });
     }
 
     else if(section.category === "coding") {
@@ -715,7 +730,6 @@ exports.examEval = async(req,res) => {
                 sectionQN = sec
             }
         }
-        // Verified Output
         const {result,testcase} = await Code.evaluate(examID, questions,sectionQN, userID,section.show);
 
         return res.json({result,testcase})
@@ -735,6 +749,7 @@ exports.examSubmit = async(req,res) => {
 
     var timerExist = await Timer.findOne({examid:examID,sectionid:sectionID,studentid:userID});
     if(!timerExist) {
+        console.log('Exam not attended');
         return res.json({status:"You didn't attend the exam yet."})
     }
     var timeLeft = ((new Date().getTime() - new Date(timerExist.startTime).getTime()) / 60000); 
@@ -743,10 +758,12 @@ exports.examSubmit = async(req,res) => {
 
     if(performanceOfStudent !== null && section.category === "mcq") {
         let result = await Scoring.findOne({_id: performanceOfStudent.score[sectionID],studentid:userID})
+        console.log('MCQ exam already attended');
         return res.json({status:"You have been already attended this exam.", code: 402,result:result})
     }
 
     else if(timeLeft > section.time) {
+        console.log('Exam time over');
         return res.json({status:"Time is over. Can't evaluate.",code:401})
     }
 
@@ -760,6 +777,10 @@ exports.examSubmit = async(req,res) => {
         }
         // Verified Output
         var {result,testcase} = await Code.evaluate(examID, questions,sectionQN, userID,section.show);
+        
+        console.log('Evaluation Result:', JSON.stringify(result, null, 2));
+        console.log('Test Cases:', JSON.stringify(testcase, null, 2));
+        
         if(result==='system library found')
             return res.json({result,testcase})
 
@@ -767,35 +788,61 @@ exports.examSubmit = async(req,res) => {
         var overPoint = 0;
         var question = section.questions;
 
-        result.map((qn,item) => {
+        // Improved test case handling
+        const processTestCases = (cases) => {
+            let totalRating = 0;
+            let totalOverPoint = 0;
+            
+            cases.forEach((testCase) => {
+                if(testCase.status === "correct") {
+                    totalRating += testCase.rating;
+                }
+                else if(testCase.status === "incorrect"){
+                    totalRating -= testCase.rating; // Deduct points for incorrect cases
+                }
+                totalOverPoint += testCase.rating;
+            });
+            
+            return { totalRating, totalOverPoint };
+        };
+
+        // Process main result
+        result.forEach((qn) => {
             if(qn.status === "correct") {
-                rating += qn.rating
+                rating += qn.rating;
             }
             else if(qn.status === "incorrect"){
-                rating += 0
+                rating += 0;
             }
-            overPoint += qn.rating
-        })
+            overPoint += qn.rating;
+        });
 
-        testcase = testcase[0]
-
-        testcase?.map((qn,item) => {
-            if(qn.status === "correct") {
-                rating += qn.rating
-            }
-            else if(qn.status === "incorrect"){
-                rating -= qn.rating
-            }
-            overPoint += qn.rating
-        })
-
+        // Process test cases 
+        if (Array.isArray(testcase)) {
+            testcase.forEach((testCaseSet) => {
+                const { totalRating: testCaseRating, totalOverPoint: testCaseOverPoint } = processTestCases(testCaseSet);
+                rating += testCaseRating;
+                overPoint += testCaseOverPoint;
+            });
+        } else if (testcase) {
+            const { totalRating: testCaseRating, totalOverPoint: testCaseOverPoint } = processTestCases(testcase);
+            rating += testCaseRating;
+            overPoint += testCaseOverPoint;
+        }
         var studentPerformance = {
             number: questions.number,
             output: result,
-            testcase: testcase
+            testcase: testcase,
+            submissionTime: new Date()
         }
 
-        let studentScore = await Scoring.findOne({sectionid:sectionID,studentid:userID, category: section.category});
+        let studentScore = await Scoring.findOne({
+            sectionid: sectionID,
+            studentid: userID, 
+            category: section.category,
+            'questions.number': questions.number
+        });
+
         if(!studentScore) {
             let newScore = await Scoring({
                 sectionid: sectionID,
@@ -804,11 +851,15 @@ exports.examSubmit = async(req,res) => {
                 points: rating,
                 overPoint: overPoint,
                 timetaken: timeLeft,
-                questions: [questions.number],
-                performance: studentPerformance
+                questions: [{
+                    number: questions.number,
+                    submissions: [studentPerformance]
+                }],
+                finalSubmission: studentPerformance
             });
 
             await newScore.save().then(async (doc) => {
+                console.log('New Score Created:', doc);
 
                 let tmp = await Performance.findOne({examid:examID, studentid: userID, section:sectionID })
                 if(!tmp){
@@ -825,41 +876,123 @@ exports.examSubmit = async(req,res) => {
                     await newPerformance.save().then(async () => {
                         let sec = await Section.findOne({_id: sectionID},{questions:0})
                         UpdateScoreBoard(user,examID,sectionID,section.category,overPoint,rating)
-                        return res.json({sectionID: sectionID, examID: examID, section: sec,overPoint:overPoint, obtainPoint: rating, timetaken:timeLeft,result: result, testcase : testcase,code:200})
+                        console.log('Performance Created and Score Updated');
+                        return res.json({
+                            sectionID: sectionID, 
+                            examID: examID, 
+                            section: sec,
+                            overPoint: overPoint, 
+                            obtainPoint: rating, 
+                            timetaken: timeLeft,
+                            result: result, 
+                            testcase: testcase,
+                            submissionCount: 1,
+                            code: 200
+                        });
                     }).catch((err) => {
+                        console.error('Performance Creation Error:', err);
                         return res.json({status:"Something went wrong!!", code:301})
-                    })
+                    });
                 }
                 else {
-                    await Performance.findOneAndUpdate({examid:examID, studentid:userID,section:sectionID}, {score:doc._id, $inc: {points: overPoint, obtainpoint: rating}}, {new: true})
+                    await Performance.findOneAndUpdate(
+                        {examid:examID, studentid:userID,section:sectionID}, 
+                        {score:doc._id, $inc: {points: overPoint, obtainpoint: rating}}, 
+                        {new: true}
+                    );
                     let sec = await Section.findOne({_id: sectionID},{questions:0})
                     UpdateScoreBoard(user,examID,sectionID,section.category,overPoint,rating)
-                    return res.json({sectionID: sectionID, examID: examID, section: sec,overPoint:overPoint, obtainPoint: rating, timetaken:timeLeft,result: result, testcase : testcase,code:200})
-                        
+                    console.log('Existing Performance Updated');
+                    return res.json({
+                        sectionID: sectionID, 
+                        examID: examID, 
+                        section: sec,
+                        overPoint: overPoint, 
+                        obtainPoint: rating, 
+                        timetaken: timeLeft,
+                        result: result, 
+                        testcase: testcase,
+                        submissionCount: 1,
+                        code: 200
+                    });
                 }
             }).
             catch((err) => {
-                console.log(err,"eroor")
+                console.error('Score Creation Error:', err);
                 return res.json({status:"Something went wrong", code:301,error:err})
-            })
-
-
+            });
         }
         else {
-            if(studentScore.questions.includes(questions.number)){
-                return res.json({status:"You have been already submit it!!!", sectionID:sectionID, examID:examID, sectionResult: studentScore})
+            // Check number of previous submissions
+            const questionSubmissions = studentScore.questions.find(q => q.number === questions.number);
+            const submissionCount = questionSubmissions ? questionSubmissions.submissions.length : 0;
+
+            if(submissionCount >= 3) {
+                console.log('Maximum submissions reached');
+                return res.json({
+                    status: "Maximum submission limit (3) reached for this question!", 
+                    sectionID: sectionID, 
+                    examID: examID, 
+                    sectionResult: studentScore,
+                    submissionCount: submissionCount
+                });
             }
-            await Scoring.findOneAndUpdate({sectionid:sectionID,category:section.category,studentid:userID}, { $push: {questions: questions.number, performance:studentPerformance}, $inc: {overPoint:overPoint,points:rating}})
-            console.log(rating,overPoint)
-            await Performance.findOneAndUpdate({studentid:userID,examid:examID,section: sectionID}, {$inc: {points: overPoint, obtainpoint: rating}},{new: true})
+
+            // Update with new submission, replace final submission if it's the 3rd attempt
+            await Scoring.findOneAndUpdate(
+                {
+                    sectionid: sectionID,
+                    studentid: userID,
+                    category: section.category,
+                    'questions.number': questions.number
+                }, 
+                { 
+                    $push: {
+                        'questions.$.submissions': studentPerformance
+                    },
+                    $set: {
+                        finalSubmission: submissionCount === 2 ? studentPerformance : undefined
+                    },
+                    $inc: {
+                        points: submissionCount === 2 ? rating : 0,
+                        overPoint: submissionCount === 2 ? overPoint : 0
+                    }
+                },
+                { new: true }
+            );
+
+            // Update performance only on the last (3rd) submission
+            if(submissionCount === 2) {
+                await Performance.findOneAndUpdate(
+                    {studentid:userID, examid:examID, section: sectionID}, 
+                    {$inc: {points: overPoint, obtainpoint: rating}},
+                    {new: true}
+                );
+            }
+
             let sec = await Section.findOne({_id: sectionID},{questions:0})
-            UpdateScoreBoard(user,examID,sectionID,section.category,overPoint,rating)
-            return res.json({sectionID: sectionID, examID: examID, section: sec,overPoint:overPoint, obtainPoint: rating, timetaken:timeLeft,result: result, testcase : testcase,code:200})
+            
+            // Only update scoreboard on final submission
+            if(submissionCount === 2) {
+                UpdateScoreBoard(user,examID,sectionID,section.category,overPoint,rating)
+            }
+
+            console.log(`Submission ${submissionCount + 1} for question`);
+            return res.json({
+                sectionID: sectionID, 
+                examID: examID, 
+                section: sec,
+                overPoint: overPoint, 
+                obtainPoint: rating, 
+                timetaken: timeLeft,
+                result: result, 
+                testcase: testcase,
+                submissionCount: submissionCount + 1,
+                code: 200
+            });
         }
     }
 }
-
-
 exports.examAnswer = async(req,res) => {
     const { examID,sectionID } = req.params;
     const userID = await profileID(req.headers.authorization);
